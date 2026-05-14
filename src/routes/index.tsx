@@ -299,14 +299,14 @@ function CTA() {
           <span className="text-primary text-glow">Start breaking them.</span>
         </h2>
         <p className="mt-5 text-muted-foreground max-w-xl mx-auto">
-          Free tier includes 5 environments per month across all providers. No credit card.
+          Free to use. Generate as many templates as you want. Managed cloud deploy is coming soon.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link to="/build" className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 glow-primary">
-            <MousePointerClick className="h-4 w-4" /> get started — free
+            <MousePointerClick className="h-4 w-4" /> generate templates
           </Link>
           <button className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-6 py-3 text-sm font-medium hover:bg-card">
-            book a demo
+            <Clock className="h-4 w-4" /> join deploy waitlist
           </button>
         </div>
       </div>

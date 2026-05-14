@@ -199,21 +199,21 @@ const CATALOG: Category[] = [
 
 const PROVIDER_LABEL: Record<Provider, string> = { aws: "AWS", azure: "Azure", gcp: "GCP" };
 
-function generateIaC(format: Format, provider: Provider, selected: Component[]) {
+function generateIaC(format: Format, provider: Provider, region: string, selected: Component[]) {
   if (selected.length === 0) {
-    return `# Select one or more components on the left to generate ${format === "terraform" ? "Terraform" : "CloudFormation"}.\n`;
+    return `# Select one or more components on the left to generate ${format === "terraform" ? "Terraform" : "CloudFormation"}.\n# region: ${region}\n`;
   }
-  if (format === "terraform") return tf(provider, selected);
-  return cfn(selected);
+  if (format === "terraform") return tf(provider, region, selected);
+  return cfn(region, selected);
 }
 
-function tf(provider: Provider, items: Component[]) {
+function tf(provider: Provider, region: string, items: Component[]) {
   const header =
     provider === "aws"
-      ? `terraform {\n  required_providers {\n    aws = { source = "hashicorp/aws", version = "~> 5.0" }\n  }\n}\n\nprovider "aws" {\n  region = "us-east-1"\n}\n`
+      ? `terraform {\n  required_providers {\n    aws = { source = "hashicorp/aws", version = "~> 5.0" }\n  }\n}\n\nprovider "aws" {\n  region = "${region}"\n}\n`
       : provider === "azure"
-      ? `terraform {\n  required_providers {\n    azurerm = { source = "hashicorp/azurerm", version = "~> 3.0" }\n  }\n}\n\nprovider "azurerm" {\n  features {}\n}\n\nresource "azurerm_resource_group" "vbuild" {\n  name     = "vbuild-rg"\n  location = "eastus"\n}\n`
-      : `terraform {\n  required_providers {\n    google = { source = "hashicorp/google", version = "~> 5.0" }\n  }\n}\n\nprovider "google" {\n  project = "vbuild-demo"\n  region  = "us-central1"\n}\n`;
+      ? `terraform {\n  required_providers {\n    azurerm = { source = "hashicorp/azurerm", version = "~> 3.0" }\n  }\n}\n\nprovider "azurerm" {\n  features {}\n}\n\nresource "azurerm_resource_group" "vbuild" {\n  name     = "vbuild-rg"\n  location = "${region}"\n}\n`
+      : `terraform {\n  required_providers {\n    google = { source = "hashicorp/google", version = "~> 5.0" }\n  }\n}\n\nprovider "google" {\n  project = "vbuild-demo"\n  region  = "${region}"\n}\n`;
 
   const blocks = items
     .filter((c) => c.providers.includes(provider))

@@ -470,8 +470,23 @@ function BuildPage() {
                     { value: "gcp", label: "GCP", disabled: format === "cloudformation" },
                   ]}
                   value={provider}
-                  onChange={(v) => setProvider(v as Provider)}
+                  onChange={(v) => changeProvider(v as Provider)}
                 />
+                <div className="relative inline-flex items-center" title={`Region IDs are provider-specific (${PROVIDER_LABEL[provider]} format).`}>
+                  <Globe className="absolute left-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <select
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                    className="appearance-none rounded-md border border-border bg-background/60 pl-7 pr-7 py-1.5 font-mono text-xs hover:bg-background focus:outline-none focus:border-primary/60 cursor-pointer"
+                  >
+                    {REGIONS[provider].map((r) => (
+                      <option key={r.id} value={r.id} className="bg-background">
+                        {r.id} — {r.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronLeft className="absolute right-2 h-3 w-3 text-muted-foreground pointer-events-none -rotate-90" />
+                </div>
                 <div className="h-5 w-px bg-border" />
                 <button
                   onClick={copy}

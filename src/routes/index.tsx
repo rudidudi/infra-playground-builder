@@ -65,16 +65,17 @@ function Hero() {
           <div className="lg:col-span-7">
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-1 text-xs font-mono text-muted-foreground mb-6">
               <span className="h-1.5 w-1.5 rounded-full bg-primary blink" />
-              v0.4.2 — multi-cloud orchestrator online
+              v0.4.2 — IaC generator online · cloud deploy coming soon
             </div>
             <h1 className="font-display text-5xl md:text-7xl font-bold tracking-tight leading-[1.02]">
-              Provision <span className="text-primary text-glow">vulnerable</span><br />
+              Generate <span className="text-primary text-glow">vulnerable</span><br />
               infrastructure<br />
-              <span className="text-muted-foreground">on demand.</span>
+              <span className="text-muted-foreground">as code.</span>
             </h1>
             <p className="mt-6 text-lg text-muted-foreground max-w-xl leading-relaxed">
-              A few clicks spin up purposely-misconfigured environments across AWS, GCP, and Azure.
-              Train red teams, run CTFs, validate detections — without manually building target infra.
+              Compose purposely-misconfigured environments for AWS, Azure, and GCP, then download
+              the Terraform or CloudFormation. Apply it in your own isolated account.
+              One-click cloud deploy is on the roadmap.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/build" className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition glow-primary">
@@ -88,7 +89,7 @@ function Hero() {
             <div className="mt-10 grid grid-cols-3 gap-6 max-w-md">
               <Stat label="scenarios" value="42" />
               <Stat label="cloud apis" value="3" />
-              <Stat label="deploy time" value="< 90s" />
+              <Stat label="iac formats" value="2" />
             </div>
           </div>
 

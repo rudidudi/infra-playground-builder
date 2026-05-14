@@ -1,7 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import {
-  Shield, Terminal, Zap, ChevronRight, Lock, Database, Server, Cloud,
+  Shield, Zap, ChevronRight, Lock, Database, Server, Cloud,
   AlertTriangle, Activity, GitBranch, Box, ArrowUpRight, Cpu,
+  Layers, Rocket, MousePointerClick,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -11,7 +12,6 @@ export const Route = createFileRoute("/")({
 function Index() {
   return (
     <div className="min-h-screen bg-background text-foreground relative overflow-hidden">
-      {/* Ambient grid */}
       <div className="absolute inset-0 grid-bg opacity-40 [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_70%)]" />
 
       <Nav />
@@ -73,12 +73,12 @@ function Hero() {
               <span className="text-muted-foreground">on demand.</span>
             </h1>
             <p className="mt-6 text-lg text-muted-foreground max-w-xl leading-relaxed">
-              One command spins up purposely-misconfigured environments across AWS, GCP, and Azure.
+              A few clicks spin up purposely-misconfigured environments across AWS, GCP, and Azure.
               Train red teams, run CTFs, validate detections — without manually building target infra.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <button className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition glow-primary">
-                <Terminal className="h-4 w-4" /> start building
+                <Rocket className="h-4 w-4" /> start building
               </button>
               <button className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-5 py-3 text-sm font-medium hover:bg-card transition">
                 <GitBranch className="h-4 w-4" /> view scenarios
@@ -93,7 +93,7 @@ function Hero() {
           </div>
 
           <div className="lg:col-span-5">
-            <TerminalCard />
+            <DeployPreviewCard />
           </div>
         </div>
       </div>
@@ -110,28 +110,54 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function TerminalCard() {
+function DeployPreviewCard() {
   return (
     <div className="relative scanline rounded-xl border border-border bg-card/80 backdrop-blur shadow-2xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background/40">
-        <div className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-destructive/70" />
-          <span className="h-2.5 w-2.5 rounded-full bg-warning/70" />
-          <span className="h-2.5 w-2.5 rounded-full bg-success/70" />
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background/40">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-success pulse-ring" />
+          <span className="font-mono text-xs text-muted-foreground">env / x9k2 — provisioning</span>
         </div>
-        <span className="font-mono text-xs text-muted-foreground">~/vulnerabuild — zsh</span>
-        <Terminal className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">live</span>
       </div>
-      <div className="p-5 font-mono text-[13px] leading-relaxed space-y-1.5">
-        <div><span className="text-primary">$</span> vbuild deploy --target aws --scenario s3-public-buckets</div>
-        <div className="text-muted-foreground">→ initializing terraform workspace…</div>
-        <div className="text-muted-foreground">→ provisioning <span className="text-[var(--color-aws)]">aws</span>::vpc/subnet/iam</div>
-        <div className="text-muted-foreground">→ injecting misconfiguration <span className="text-warning">[CWE-732]</span></div>
-        <div className="text-success">✓ deployed in 73s</div>
-        <div className="pt-2"><span className="text-primary">$</span> vbuild add --target gcp --scenario over-privileged-sa</div>
-        <div className="text-muted-foreground">→ chaining attack path…</div>
-        <div className="text-success">✓ environment ready: <span className="underline">vbuild.io/env/x9k2</span></div>
-        <div className="pt-1"><span className="text-primary">$</span><span className="blink">▊</span></div>
+
+      <div className="p-5 space-y-3">
+        <DeployRow provider="aws" color="var(--color-aws)" name="s3-public-buckets" tag="CWE-732" status="done" />
+        <DeployRow provider="gcp" color="var(--color-gcp)" name="over-privileged-sa" tag="IAM-014" status="active" />
+        <DeployRow provider="az"  color="var(--color-azure)" name="exposed-rdp-ssh" tag="NET-007" status="queued" />
+
+        <div className="pt-3 mt-3 border-t border-border flex items-center justify-between">
+          <div className="font-mono text-[11px] text-muted-foreground">
+            chained attack path · 3 resources
+          </div>
+          <button className="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline">
+            open console <ArrowUpRight className="h-3 w-3" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeployRow({ provider, color, name, tag, status }: { provider: string; color: string; name: string; tag: string; status: "done" | "active" | "queued" }) {
+  const statusStyle = {
+    done:   { dot: "bg-success", text: "deployed",     cls: "text-success" },
+    active: { dot: "bg-primary blink", text: "deploying…", cls: "text-primary" },
+    queued: { dot: "bg-muted-foreground/50", text: "queued", cls: "text-muted-foreground" },
+  }[status];
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-background/40 px-3 py-2.5">
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="font-mono text-[10px] uppercase px-1.5 py-0.5 rounded" style={{ background: `color-mix(in oklab, ${color} 15%, transparent)`, color }}>{provider}</span>
+        <span className="font-mono text-sm truncate">{name}</span>
+      </div>
+      <div className="flex items-center gap-3 flex-shrink-0">
+        <span className="font-mono text-[10px] text-muted-foreground hidden sm:inline">{tag}</span>
+        <span className={`flex items-center gap-1.5 font-mono text-[11px] ${statusStyle.cls}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${statusStyle.dot}`} />
+          {statusStyle.text}
+        </span>
       </div>
     </div>
   );
@@ -226,7 +252,7 @@ function ScenarioCard({ icon: Icon, name, id, severity, provider, desc }: any) {
       <h3 className="mt-2 font-display font-semibold">{name}</h3>
       <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{desc}</p>
       <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between font-mono text-xs text-muted-foreground">
-        <span>$ vbuild deploy {id.toLowerCase()}</span>
+        <span>deploy scenario</span>
         <ChevronRight className="h-3.5 w-3.5 group-hover:text-primary group-hover:translate-x-0.5 transition" />
       </div>
     </div>
@@ -236,7 +262,7 @@ function ScenarioCard({ icon: Icon, name, id, severity, provider, desc }: any) {
 function DeploySection() {
   const steps = [
     { n: "01", title: "Connect cloud accounts", desc: "OIDC federation with read-only role for inventory + scoped role for deploy.", icon: Cloud },
-    { n: "02", title: "Compose environment", desc: "Pick scenarios, chain attack paths, set lifetime and blast radius.", icon: GitBranch },
+    { n: "02", title: "Compose environment", desc: "Pick scenarios, chain attack paths, set lifetime and blast radius.", icon: Layers },
     { n: "03", title: "Deploy & monitor", desc: "Live console, network map, and an auto-teardown timer that you control.", icon: Activity },
   ];
   return (
@@ -282,7 +308,7 @@ function CTA() {
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <button className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 glow-primary">
-            <Terminal className="h-4 w-4" /> get started — free
+            <MousePointerClick className="h-4 w-4" /> get started — free
           </button>
           <button className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-6 py-3 text-sm font-medium hover:bg-card">
             book a demo

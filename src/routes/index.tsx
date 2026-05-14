@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Shield, Zap, ChevronRight, Lock, Database, Server, Cloud,
   AlertTriangle, Activity, GitBranch, Box, ArrowUpRight, Cpu,
@@ -48,9 +48,9 @@ function Nav() {
         </nav>
         <div className="flex items-center gap-3">
           <button className="hidden sm:inline-flex text-sm font-mono text-muted-foreground hover:text-foreground">sign in</button>
-          <button className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition">
+          <Link to="/build" className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition">
             launch console <ChevronRight className="h-3.5 w-3.5" />
-          </button>
+          </Link>
         </div>
       </div>
     </header>
@@ -77,9 +77,9 @@ function Hero() {
               Train red teams, run CTFs, validate detections — without manually building target infra.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <button className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition glow-primary">
+              <Link to="/build" className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition glow-primary">
                 <Rocket className="h-4 w-4" /> start building
-              </button>
+              </Link>
               <button className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-5 py-3 text-sm font-medium hover:bg-card transition">
                 <GitBranch className="h-4 w-4" /> view scenarios
               </button>
@@ -307,9 +307,9 @@ function CTA() {
           Free tier includes 5 environments per month across all providers. No credit card.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <button className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 glow-primary">
+          <Link to="/build" className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 glow-primary">
             <MousePointerClick className="h-4 w-4" /> get started — free
-          </button>
+          </Link>
           <button className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-6 py-3 text-sm font-medium hover:bg-card">
             book a demo
           </button>

@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Shield, Zap, ChevronRight, Lock, Database, Server, Cloud,
   AlertTriangle, Activity, GitBranch, Box, ArrowUpRight, Cpu,
-  Layers, Rocket, MousePointerClick,
+  Layers, Rocket, MousePointerClick, FileCode, Download, Clock,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -65,16 +65,17 @@ function Hero() {
           <div className="lg:col-span-7">
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-1 text-xs font-mono text-muted-foreground mb-6">
               <span className="h-1.5 w-1.5 rounded-full bg-primary blink" />
-              v0.4.2 — multi-cloud orchestrator online
+              v0.4.2 — IaC generator online · cloud deploy coming soon
             </div>
             <h1 className="font-display text-5xl md:text-7xl font-bold tracking-tight leading-[1.02]">
-              Provision <span className="text-primary text-glow">vulnerable</span><br />
+              Generate <span className="text-primary text-glow">vulnerable</span><br />
               infrastructure<br />
-              <span className="text-muted-foreground">on demand.</span>
+              <span className="text-muted-foreground">as code.</span>
             </h1>
             <p className="mt-6 text-lg text-muted-foreground max-w-xl leading-relaxed">
-              A few clicks spin up purposely-misconfigured environments across AWS, GCP, and Azure.
-              Train red teams, run CTFs, validate detections — without manually building target infra.
+              Compose purposely-misconfigured environments for AWS, Azure, and GCP, then download
+              the Terraform or CloudFormation. Apply it in your own isolated account.
+              One-click cloud deploy is on the roadmap.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/build" className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition glow-primary">
@@ -88,7 +89,7 @@ function Hero() {
             <div className="mt-10 grid grid-cols-3 gap-6 max-w-md">
               <Stat label="scenarios" value="42" />
               <Stat label="cloud apis" value="3" />
-              <Stat label="deploy time" value="< 90s" />
+              <Stat label="iac formats" value="2" />
             </div>
           </div>
 
@@ -115,49 +116,34 @@ function DeployPreviewCard() {
     <div className="relative scanline rounded-xl border border-border bg-card/80 backdrop-blur shadow-2xl overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background/40">
         <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-success pulse-ring" />
-          <span className="font-mono text-xs text-muted-foreground">env / x9k2 — provisioning</span>
+          <FileCode className="h-3.5 w-3.5 text-primary" />
+          <span className="font-mono text-xs text-muted-foreground">vulnerabuild-aws.tf</span>
         </div>
-        <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">live</span>
+        <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">terraform</span>
       </div>
 
-      <div className="p-5 space-y-3">
-        <DeployRow provider="aws" color="var(--color-aws)" name="s3-public-buckets" tag="CWE-732" status="done" />
-        <DeployRow provider="gcp" color="var(--color-gcp)" name="over-privileged-sa" tag="IAM-014" status="active" />
-        <DeployRow provider="az"  color="var(--color-azure)" name="exposed-rdp-ssh" tag="NET-007" status="queued" />
+      <div className="p-5 font-mono text-[12px] leading-relaxed space-y-1 text-foreground/90">
+        <div><span className="text-muted-foreground"># Public S3 bucket — vulns: S3-001, S3-004</span></div>
+        <div><span className="text-primary">resource</span> <span className="text-accent">"aws_s3_bucket"</span> <span className="text-accent">"public"</span> {"{"}</div>
+        <div className="pl-4">bucket = <span className="text-success">"vbuild-public"</span></div>
+        <div>{"}"}</div>
+        <div className="h-2" />
+        <div><span className="text-muted-foreground"># Public SSH/RDP host — vulns: NET-007</span></div>
+        <div><span className="text-primary">resource</span> <span className="text-accent">"aws_security_group"</span> <span className="text-accent">"open"</span> {"{"}</div>
+        <div className="pl-4">ingress {"{"}</div>
+        <div className="pl-8">cidr_blocks = [<span className="text-success">"0.0.0.0/0"</span>]</div>
+        <div className="pl-8">from_port   = <span className="text-warning">22</span></div>
+        <div className="pl-4">{"}"}</div>
+        <div>{"}"}</div>
+      </div>
 
-        <div className="pt-3 mt-3 border-t border-border flex items-center justify-between">
-          <div className="font-mono text-[11px] text-muted-foreground">
-            chained attack path · 3 resources
-          </div>
-          <button className="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline">
-            open console <ArrowUpRight className="h-3 w-3" />
-          </button>
+      <div className="px-4 py-3 border-t border-border bg-background/40 flex items-center justify-between">
+        <div className="font-mono text-[11px] text-muted-foreground">
+          2 resources · 3 vulnerabilities
         </div>
-      </div>
-    </div>
-  );
-}
-
-function DeployRow({ provider, color, name, tag, status }: { provider: string; color: string; name: string; tag: string; status: "done" | "active" | "queued" }) {
-  const statusStyle = {
-    done:   { dot: "bg-success", text: "deployed",     cls: "text-success" },
-    active: { dot: "bg-primary blink", text: "deploying…", cls: "text-primary" },
-    queued: { dot: "bg-muted-foreground/50", text: "queued", cls: "text-muted-foreground" },
-  }[status];
-
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-background/40 px-3 py-2.5">
-      <div className="flex items-center gap-3 min-w-0">
-        <span className="font-mono text-[10px] uppercase px-1.5 py-0.5 rounded" style={{ background: `color-mix(in oklab, ${color} 15%, transparent)`, color }}>{provider}</span>
-        <span className="font-mono text-sm truncate">{name}</span>
-      </div>
-      <div className="flex items-center gap-3 flex-shrink-0">
-        <span className="font-mono text-[10px] text-muted-foreground hidden sm:inline">{tag}</span>
-        <span className={`flex items-center gap-1.5 font-mono text-[11px] ${statusStyle.cls}`}>
-          <span className={`h-1.5 w-1.5 rounded-full ${statusStyle.dot}`} />
-          {statusStyle.text}
-        </span>
+        <Link to="/build" className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 font-mono text-xs text-primary-foreground hover:opacity-90">
+          <Download className="h-3 w-3" /> download .tf
+        </Link>
       </div>
     </div>
   );
@@ -261,14 +247,14 @@ function ScenarioCard({ icon: Icon, name, id, severity, provider, desc }: any) {
 
 function DeploySection() {
   const steps = [
-    { n: "01", title: "Connect cloud accounts", desc: "OIDC federation with read-only role for inventory + scoped role for deploy.", icon: Cloud },
-    { n: "02", title: "Compose environment", desc: "Pick scenarios, chain attack paths, set lifetime and blast radius.", icon: Layers },
-    { n: "03", title: "Deploy & monitor", desc: "Live console, network map, and an auto-teardown timer that you control.", icon: Activity },
+    { n: "01", title: "Compose environment", desc: "Pick scenarios across VM, Data, Identity and Container. Review the vulnerabilities each one introduces.", icon: Layers },
+    { n: "02", title: "Generate IaC", desc: "Choose Terraform (AWS / Azure / GCP) or CloudFormation (AWS), pick a region, and the template is ready.", icon: FileCode },
+    { n: "03", title: "Download & apply", desc: "Download the .tf or .yaml and run it in your own isolated sub-account or project.", icon: Download },
   ];
   return (
     <section id="deploy" className="relative py-24 border-t border-border/60">
       <div className="mx-auto max-w-7xl px-6">
-        <SectionHeader eyebrow="03 — workflow" title="From zero to vulnerable in 90 seconds." />
+        <SectionHeader eyebrow="03 — workflow" title="From scenario to template in seconds." subtitle="Today: download IaC and apply it yourself. Soon: one-click deploy from the console." />
         <div className="mt-12 grid md:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border">
           {steps.map((s) => (
             <div key={s.n} className="bg-card p-8 relative">
@@ -282,11 +268,20 @@ function DeploySection() {
           ))}
         </div>
 
-        <div className="mt-6 rounded-xl border border-warning/30 bg-warning/5 p-5 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <span className="font-semibold text-warning">isolation guarantee.</span>{" "}
-            <span className="text-muted-foreground">Every environment runs in a dedicated sub-account/project, tagged, time-boxed, and torn down on expiry. Never deploy on top of production.</span>
+        <div className="mt-6 grid md:grid-cols-2 gap-3">
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 flex items-start gap-3">
+            <Clock className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <span className="font-semibold text-primary">coming soon — managed deploy.</span>{" "}
+              <span className="text-muted-foreground">Connect a cloud account via OIDC and we will provision, monitor, and tear down environments for you. Currently in private alpha.</span>
+            </div>
+          </div>
+          <div className="rounded-xl border border-warning/30 bg-warning/5 p-5 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <span className="font-semibold text-warning">apply with care.</span>{" "}
+              <span className="text-muted-foreground">These templates are intentionally vulnerable. Use a dedicated sub-account / project, tag everything, and never apply on top of production.</span>
+            </div>
           </div>
         </div>
       </div>
@@ -304,14 +299,14 @@ function CTA() {
           <span className="text-primary text-glow">Start breaking them.</span>
         </h2>
         <p className="mt-5 text-muted-foreground max-w-xl mx-auto">
-          Free tier includes 5 environments per month across all providers. No credit card.
+          Free to use. Generate as many templates as you want. Managed cloud deploy is coming soon.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link to="/build" className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 glow-primary">
-            <MousePointerClick className="h-4 w-4" /> get started — free
+            <MousePointerClick className="h-4 w-4" /> generate templates
           </Link>
           <button className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-6 py-3 text-sm font-medium hover:bg-card">
-            book a demo
+            <Clock className="h-4 w-4" /> join deploy waitlist
           </button>
         </div>
       </div>

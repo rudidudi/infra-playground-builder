@@ -505,7 +505,11 @@ function BuildPage() {
               </div>
             </div>
 
-            {/* code */}
+            <div className="px-4 py-2 border-b border-border bg-background/20 flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
+              <Info className="h-3 w-3 text-primary flex-shrink-0" />
+              region IDs differ per CSP — AWS uses <span className="text-foreground">us-east-1</span>, Azure uses <span className="text-foreground">eastus</span>, GCP uses <span className="text-foreground">us-central1</span>.
+            </div>
+
             <div className="relative">
               <pre className="p-5 font-mono text-[12.5px] leading-relaxed overflow-auto max-h-[70vh] text-foreground/90">
                 <code>{code}</code>

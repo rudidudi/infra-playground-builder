@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Shield, Zap, ChevronRight, Lock, Database, Server, Cloud,
   AlertTriangle, Activity, GitBranch, Box, ArrowUpRight, Cpu,
-  Layers, Rocket, MousePointerClick,
+  Layers, Rocket, MousePointerClick, FileCode, Download, Clock,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({

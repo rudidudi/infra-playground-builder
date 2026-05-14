@@ -253,7 +253,7 @@ function tfBlock(provider: Provider, c: Component) {
   return banner + body;
 }
 
-function cfn(items: Component[]) {
+function cfn(region: string, items: Component[]) {
   const aws = items.filter((c) => c.providers.includes("aws"));
   const skipped = items.filter((c) => !c.providers.includes("aws"));
   const resources = aws
@@ -271,7 +271,7 @@ function cfn(items: Component[]) {
 
   const skip = skipped.map((c) => `# skipped: "${c.name}" — CloudFormation is AWS-only.`).join("\n");
 
-  return `AWSTemplateFormatVersion: "2010-09-09"\nDescription: Vulnerabuild — intentionally vulnerable AWS infrastructure\n\nResources:\n${resources || "  Noop:\n    Type: AWS::CloudFormation::WaitConditionHandle\n"}\n${skip}`;
+  return `AWSTemplateFormatVersion: "2010-09-09"\nDescription: Vulnerabuild — intentionally vulnerable AWS infrastructure (deploy region: ${region})\n\nResources:\n${resources || "  Noop:\n    Type: AWS::CloudFormation::WaitConditionHandle\n"}\n${skip}`;
 }
 
 const pascal = (s: string) => s.replace(/(^|[-_])(\w)/g, (_, __, c) => c.toUpperCase());

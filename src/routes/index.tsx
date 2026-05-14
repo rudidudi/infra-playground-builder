@@ -116,49 +116,34 @@ function DeployPreviewCard() {
     <div className="relative scanline rounded-xl border border-border bg-card/80 backdrop-blur shadow-2xl overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background/40">
         <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-success pulse-ring" />
-          <span className="font-mono text-xs text-muted-foreground">env / x9k2 — provisioning</span>
+          <FileCode className="h-3.5 w-3.5 text-primary" />
+          <span className="font-mono text-xs text-muted-foreground">vulnerabuild-aws.tf</span>
         </div>
-        <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">live</span>
+        <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">terraform</span>
       </div>
 
-      <div className="p-5 space-y-3">
-        <DeployRow provider="aws" color="var(--color-aws)" name="s3-public-buckets" tag="CWE-732" status="done" />
-        <DeployRow provider="gcp" color="var(--color-gcp)" name="over-privileged-sa" tag="IAM-014" status="active" />
-        <DeployRow provider="az"  color="var(--color-azure)" name="exposed-rdp-ssh" tag="NET-007" status="queued" />
+      <div className="p-5 font-mono text-[12px] leading-relaxed space-y-1 text-foreground/90">
+        <div><span className="text-muted-foreground"># Public S3 bucket — vulns: S3-001, S3-004</span></div>
+        <div><span className="text-primary">resource</span> <span className="text-accent">"aws_s3_bucket"</span> <span className="text-accent">"public"</span> {"{"}</div>
+        <div className="pl-4">bucket = <span className="text-success">"vbuild-public"</span></div>
+        <div>{"}"}</div>
+        <div className="h-2" />
+        <div><span className="text-muted-foreground"># Public SSH/RDP host — vulns: NET-007</span></div>
+        <div><span className="text-primary">resource</span> <span className="text-accent">"aws_security_group"</span> <span className="text-accent">"open"</span> {"{"}</div>
+        <div className="pl-4">ingress {"{"}</div>
+        <div className="pl-8">cidr_blocks = [<span className="text-success">"0.0.0.0/0"</span>]</div>
+        <div className="pl-8">from_port   = <span className="text-warning">22</span></div>
+        <div className="pl-4">{"}"}</div>
+        <div>{"}"}</div>
+      </div>
 
-        <div className="pt-3 mt-3 border-t border-border flex items-center justify-between">
-          <div className="font-mono text-[11px] text-muted-foreground">
-            chained attack path · 3 resources
-          </div>
-          <button className="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline">
-            open console <ArrowUpRight className="h-3 w-3" />
-          </button>
+      <div className="px-4 py-3 border-t border-border bg-background/40 flex items-center justify-between">
+        <div className="font-mono text-[11px] text-muted-foreground">
+          2 resources · 3 vulnerabilities
         </div>
-      </div>
-    </div>
-  );
-}
-
-function DeployRow({ provider, color, name, tag, status }: { provider: string; color: string; name: string; tag: string; status: "done" | "active" | "queued" }) {
-  const statusStyle = {
-    done:   { dot: "bg-success", text: "deployed",     cls: "text-success" },
-    active: { dot: "bg-primary blink", text: "deploying…", cls: "text-primary" },
-    queued: { dot: "bg-muted-foreground/50", text: "queued", cls: "text-muted-foreground" },
-  }[status];
-
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-background/40 px-3 py-2.5">
-      <div className="flex items-center gap-3 min-w-0">
-        <span className="font-mono text-[10px] uppercase px-1.5 py-0.5 rounded" style={{ background: `color-mix(in oklab, ${color} 15%, transparent)`, color }}>{provider}</span>
-        <span className="font-mono text-sm truncate">{name}</span>
-      </div>
-      <div className="flex items-center gap-3 flex-shrink-0">
-        <span className="font-mono text-[10px] text-muted-foreground hidden sm:inline">{tag}</span>
-        <span className={`flex items-center gap-1.5 font-mono text-[11px] ${statusStyle.cls}`}>
-          <span className={`h-1.5 w-1.5 rounded-full ${statusStyle.dot}`} />
-          {statusStyle.text}
-        </span>
+        <Link to="/build" className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 font-mono text-xs text-primary-foreground hover:opacity-90">
+          <Download className="h-3 w-3" /> download .tf
+        </Link>
       </div>
     </div>
   );

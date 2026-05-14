@@ -307,9 +307,9 @@ function CTA() {
           Free tier includes 5 environments per month across all providers. No credit card.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <button className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 glow-primary">
+          <Link to="/build" className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 glow-primary">
             <MousePointerClick className="h-4 w-4" /> get started — free
-          </button>
+          </Link>
           <button className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-6 py-3 text-sm font-medium hover:bg-card">
             book a demo
           </button>

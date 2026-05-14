@@ -2,8 +2,41 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Shield, Server, Database, KeyRound, Box, ChevronLeft, Copy, Download,
-  AlertTriangle, Check, Plus, Minus, FileCode,
+  AlertTriangle, Check, Plus, Minus, FileCode, Globe, Info,
 } from "lucide-react";
+
+const REGIONS: Record<Provider, { id: string; label: string }[]> = {
+  aws: [
+    { id: "us-east-1", label: "US East (N. Virginia)" },
+    { id: "us-east-2", label: "US East (Ohio)" },
+    { id: "us-west-2", label: "US West (Oregon)" },
+    { id: "eu-west-1", label: "Europe (Ireland)" },
+    { id: "eu-central-1", label: "Europe (Frankfurt)" },
+    { id: "ap-southeast-1", label: "Asia Pacific (Singapore)" },
+    { id: "ap-northeast-1", label: "Asia Pacific (Tokyo)" },
+    { id: "sa-east-1", label: "South America (São Paulo)" },
+  ],
+  azure: [
+    { id: "eastus", label: "East US (Virginia)" },
+    { id: "eastus2", label: "East US 2 (Virginia)" },
+    { id: "westus2", label: "West US 2 (Washington)" },
+    { id: "westeurope", label: "West Europe (Netherlands)" },
+    { id: "northeurope", label: "North Europe (Ireland)" },
+    { id: "germanywestcentral", label: "Germany West Central (Frankfurt)" },
+    { id: "southeastasia", label: "Southeast Asia (Singapore)" },
+    { id: "japaneast", label: "Japan East (Tokyo)" },
+  ],
+  gcp: [
+    { id: "us-central1", label: "us-central1 (Iowa)" },
+    { id: "us-east1", label: "us-east1 (South Carolina)" },
+    { id: "us-west1", label: "us-west1 (Oregon)" },
+    { id: "europe-west1", label: "europe-west1 (Belgium)" },
+    { id: "europe-west3", label: "europe-west3 (Frankfurt)" },
+    { id: "asia-southeast1", label: "asia-southeast1 (Singapore)" },
+    { id: "asia-northeast1", label: "asia-northeast1 (Tokyo)" },
+    { id: "southamerica-east1", label: "southamerica-east1 (São Paulo)" },
+  ],
+};
 
 export const Route = createFileRoute("/build")({
   head: () => ({

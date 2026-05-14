@@ -44,7 +44,6 @@ function Nav() {
           <a href="#providers" className="hover:text-foreground transition-colors">providers</a>
           <a href="#scenarios" className="hover:text-foreground transition-colors">scenarios</a>
           <a href="#deploy" className="hover:text-foreground transition-colors">deploy</a>
-          <a href="#" className="hover:text-foreground transition-colors">docs</a>
         </nav>
         <div className="flex items-center gap-3">
           <button className="hidden sm:inline-flex text-sm font-mono text-muted-foreground hover:text-foreground">sign in</button>
@@ -81,9 +80,9 @@ function Hero() {
               <Link to="/build" className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition glow-primary">
                 <Rocket className="h-4 w-4" /> start building
               </Link>
-              <button className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-5 py-3 text-sm font-medium hover:bg-card transition">
+              <a href="#scenarios" className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-5 py-3 text-sm font-medium hover:bg-card transition">
                 <GitBranch className="h-4 w-4" /> view scenarios
-              </button>
+              </a>
             </div>
 
             <div className="mt-10 grid grid-cols-3 gap-6 max-w-md">
@@ -305,9 +304,6 @@ function CTA() {
           <Link to="/build" className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 glow-primary">
             <MousePointerClick className="h-4 w-4" /> generate templates
           </Link>
-          <button className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-6 py-3 text-sm font-medium hover:bg-card">
-            <Clock className="h-4 w-4" /> join deploy waitlist
-          </button>
         </div>
       </div>
     </section>

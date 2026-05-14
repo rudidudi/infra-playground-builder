@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Shield, Server, Database, KeyRound, Box, ChevronLeft, Copy, Download,
-  AlertTriangle, Check, Plus, Minus, FileCode, Globe, Info, Zap, Network,
+  AlertTriangle, Check, Plus, Minus, FileCode, Globe, Zap, Network,
 } from "lucide-react";
 
 const REGIONS: Record<Provider, { id: string; label: string }[]> = {
@@ -343,6 +343,86 @@ const CATALOG: Category[] = [
     ],
   },
 ];
+
+// Standards references per vulnerability ID — CWE (weakness type), CVSS v3.1 base score, CIS Benchmark control.
+// CIS is only included where a direct, well-known mapping exists; CWE/CVSS are provided for every vuln.
+type VulnRefs = { cwe?: string; cvss?: string; cis?: string };
+
+const VULN_REFS: Record<string, VulnRefs> = {
+  // --- VM ---
+  "NET-007": { cwe: "CWE-284", cvss: "9.1", cis: "CIS AWS 5.2 / 5.3" },
+  "VM-014":  { cwe: "CWE-521", cvss: "8.1" },
+  "LOG-002": { cwe: "CWE-778", cvss: "5.3", cis: "CIS AWS 3.9" },
+  "EC2-022": { cwe: "CWE-918", cvss: "9.1", cis: "CIS AWS 5.6" },
+  "IAM-031": { cwe: "CWE-269", cvss: "8.1", cis: "CIS AWS 1.16" },
+  "VM-201":  { cwe: "CWE-1104", cvss: "7.5" },
+  "VM-203":  { cwe: "CWE-1104", cvss: "5.3" },
+  "VM-301":  { cwe: "CWE-311", cvss: "7.5", cis: "CIS AWS 2.2.1" },
+  "VM-303":  { cwe: "CWE-311", cvss: "5.3", cis: "CIS AWS 2.2.1" },
+  "SEC-201": { cwe: "CWE-798", cvss: "9.1" },
+  "SEC-203": { cwe: "CWE-200", cvss: "7.5" },
+
+  // --- Data ---
+  "S3-001":  { cwe: "CWE-732", cvss: "9.1", cis: "CIS AWS 2.1.5" },
+  "S3-004":  { cwe: "CWE-732", cvss: "9.1", cis: "CIS AWS 2.1.5" },
+  "S3-010":  { cwe: "CWE-693", cvss: "4.3", cis: "CIS AWS 2.1.3" },
+  "DB-101":  { cwe: "CWE-311", cvss: "7.5", cis: "CIS AWS 2.3.1" },
+  "DB-105":  { cwe: "CWE-668", cvss: "9.1", cis: "CIS AWS 2.3.3" },
+  "DB-108":  { cwe: "CWE-521", cvss: "8.1" },
+  "LOG-007": { cwe: "CWE-778", cvss: "7.5", cis: "CIS AWS 3.1" },
+  "LOG-009": { cwe: "CWE-778", cvss: "5.3", cis: "CIS AWS 3.10" },
+  "OS-001":  { cwe: "CWE-668", cvss: "9.8" },
+  "OS-003":  { cwe: "CWE-284", cvss: "9.1" },
+  "OS-007":  { cwe: "CWE-778", cvss: "5.3" },
+  "SNAP-001":{ cwe: "CWE-200", cvss: "9.1", cis: "CIS AWS 2.2.2" },
+  "SNAP-005":{ cwe: "CWE-311", cvss: "7.5", cis: "CIS AWS 2.2.1" },
+  "CACHE-001": { cwe: "CWE-306", cvss: "9.1" },
+  "CACHE-005": { cwe: "CWE-668", cvss: "8.1" },
+
+  // --- Identity ---
+  "IAM-001": { cwe: "CWE-269", cvss: "9.8", cis: "CIS AWS 1.16" },
+  "IAM-005": { cwe: "CWE-798", cvss: "8.1", cis: "CIS AWS 1.14" },
+  "IAM-009": { cwe: "CWE-308", cvss: "8.1", cis: "CIS AWS 1.10" },
+  "IAM-021": { cwe: "CWE-269", cvss: "9.1" },
+  "IAM-024": { cwe: "CWE-269", cvss: "8.1" },
+  "IAM-014": { cwe: "CWE-269", cvss: "9.1", cis: "CIS GCP 1.5" },
+  "IAM-040": { cwe: "CWE-863", cvss: "9.8" },
+  "IAM-041": { cwe: "CWE-863", cvss: "8.1" },
+  "IAM-050": { cwe: "CWE-798", cvss: "9.8", cis: "CIS AWS 1.4" },
+  "IAM-051": { cwe: "CWE-308", cvss: "9.8", cis: "CIS AWS 1.5" },
+  "IAM-052": { cwe: "CWE-778", cvss: "7.5", cis: "CIS AWS 4.3" },
+  "IAM-070": { cwe: "CWE-521", cvss: "5.3", cis: "CIS AWS 1.8 / 1.9" },
+  "IAM-072": { cwe: "CWE-262", cvss: "4.3", cis: "CIS AWS 1.11" },
+
+  // --- Container ---
+  "REG-001": { cwe: "CWE-306", cvss: "9.1" },
+  "REG-004": { cwe: "CWE-1035", cvss: "5.3", cis: "CIS Docker 4.4" },
+  "K8S-101": { cwe: "CWE-269", cvss: "9.8", cis: "CIS K8s 5.2.1" },
+  "K8S-108": { cwe: "CWE-552", cvss: "9.8", cis: "CIS K8s 5.2.4" },
+  "K8S-115": { cwe: "CWE-269", cvss: "8.8", cis: "CIS K8s 5.1.5" },
+  "K8S-201": { cwe: "CWE-668", cvss: "7.5", cis: "CIS K8s 5.4.1" },
+  "K8S-205": { cwe: "CWE-306", cvss: "9.8", cis: "CIS K8s 1.2.1" },
+  "K8S-050": { cwe: "CWE-200", cvss: "7.5", cis: "CIS K8s 5.1.6" },
+  "K8S-052": { cwe: "CWE-269", cvss: "8.1", cis: "CIS K8s 5.1.3" },
+  "K8S-060": { cwe: "CWE-250", cvss: "7.8", cis: "CIS K8s 5.2.5" },
+  "K8S-062": { cwe: "CWE-732", cvss: "5.3", cis: "CIS K8s 5.2.6" },
+
+  // --- Serverless ---
+  "FN-001":  { cwe: "CWE-306", cvss: "9.1" },
+  "FN-002":  { cwe: "CWE-269", cvss: "8.1" },
+  "LOG-011": { cwe: "CWE-778", cvss: "4.3" },
+  "SEC-101": { cwe: "CWE-798", cvss: "9.1" },
+  "SEC-102": { cwe: "CWE-311", cvss: "7.5" },
+  "FN-014":  { cwe: "CWE-732", cvss: "7.5" },
+  "FN-016":  { cwe: "CWE-441", cvss: "8.1" },
+
+  // --- Network ---
+  "NET-101": { cwe: "CWE-326", cvss: "7.5" },
+  "NET-103": { cwe: "CWE-327", cvss: "5.3" },
+  "NET-201": { cwe: "CWE-441", cvss: "9.1" },
+  "NET-301": { cwe: "CWE-284", cvss: "7.5" },
+  "NET-401": { cwe: "CWE-693", cvss: "5.3" },
+};
 
 // ---------------- IaC generation ----------------
 
@@ -2803,6 +2883,16 @@ function BuildPage() {
   const toggle = (id: string) =>
     setSelectedIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
+  const toggleCategory = (cat: Category) => {
+    const ids = cat.components.map((c) => c.id);
+    const allSelected = ids.every((id) => selectedIds.includes(id));
+    setSelectedIds((s) =>
+      allSelected
+        ? s.filter((id) => !ids.includes(id))
+        : Array.from(new Set([...s, ...ids])),
+    );
+  };
+
   const copy = async () => {
     await navigator.clipboard.writeText(code);
     setCopied(true);
@@ -2875,9 +2965,20 @@ function BuildPage() {
             </div>
 
             <div className="p-4">
-              {CATALOG.filter((c) => c.id === activeCat).map((cat) => (
+              {CATALOG.filter((c) => c.id === activeCat).map((cat) => {
+                const allSelected = cat.components.every((c) => selectedIds.includes(c.id));
+                return (
                 <div key={cat.id}>
-                  <p className="text-xs text-muted-foreground mb-3">{cat.desc}</p>
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <p className="text-xs text-muted-foreground">{cat.desc}</p>
+                    <button
+                      onClick={() => toggleCategory(cat)}
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-background/60 px-2 py-1 font-mono text-[10px] uppercase tracking-wider hover:bg-background flex-shrink-0"
+                    >
+                      {allSelected ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                      {allSelected ? "deselect all" : "select all"}
+                    </button>
+                  </div>
                   <div className="space-y-2">
                     {cat.components.map((c) => {
                       const isSel = selectedIds.includes(c.id);
@@ -2918,7 +3019,8 @@ function BuildPage() {
                     })}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -3016,11 +3118,6 @@ function BuildPage() {
               </ControlGroup>
             </div>
 
-            <div className="px-4 py-2 border-b border-border bg-background/20 flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
-              <Info className="h-3 w-3 text-primary flex-shrink-0" />
-              region IDs differ per CSP — AWS uses <span className="text-foreground">us-east-1</span>, Azure uses <span className="text-foreground">eastus</span>, GCP uses <span className="text-foreground">us-central1</span>.
-            </div>
-
             <div className="relative">
               <pre className="p-5 font-mono text-[12.5px] leading-relaxed overflow-auto max-h-[70vh] text-foreground/90">
                 <code>{code}</code>
@@ -3047,6 +3144,7 @@ function VulnRow({ v }: { v: { id: string; title: string; severity: "critical" |
     high: "text-accent border-accent/40 bg-accent/10",
     medium: "text-warning border-warning/40 bg-warning/10",
   }[v.severity];
+  const refs = VULN_REFS[v.id];
   return (
     <div className="rounded-md border border-border/60 bg-background/40 p-2.5">
       <div className="flex items-center gap-2">
@@ -3055,6 +3153,13 @@ function VulnRow({ v }: { v: { id: string; title: string; severity: "critical" |
         <span className="text-xs font-medium truncate">{v.title}</span>
       </div>
       <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{v.desc}</p>
+      {refs && (refs.cwe || refs.cvss || refs.cis) && (
+        <div className="mt-2 flex flex-wrap gap-1 font-mono text-[10px]">
+          {refs.cwe  && <span className="px-1.5 py-0.5 rounded border border-border/60 bg-background/60 text-muted-foreground">{refs.cwe}</span>}
+          {refs.cvss && <span className="px-1.5 py-0.5 rounded border border-border/60 bg-background/60 text-muted-foreground">CVSS {refs.cvss}</span>}
+          {refs.cis  && <span className="px-1.5 py-0.5 rounded border border-border/60 bg-background/60 text-muted-foreground">{refs.cis}</span>}
+        </div>
+      )}
     </div>
   );
 }

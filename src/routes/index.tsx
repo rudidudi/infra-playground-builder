@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Shield, Zap, ChevronRight, Lock, Database, Server, Cloud,
   AlertTriangle, Activity, GitBranch, Box, ArrowUpRight, Cpu,

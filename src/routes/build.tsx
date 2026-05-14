@@ -283,14 +283,20 @@ function BuildPage() {
   const [activeCat, setActiveCat] = useState<string>("vm");
   const [format, setFormat] = useState<Format>("terraform");
   const [provider, setProvider] = useState<Provider>("aws");
+  const [region, setRegion] = useState<string>(REGIONS.aws[0].id);
   const [copied, setCopied] = useState(false);
+
+  const changeProvider = (p: Provider) => {
+    setProvider(p);
+    setRegion(REGIONS[p][0].id);
+  };
 
   const selected = useMemo(
     () => CATALOG.flatMap((c) => c.components).filter((c) => selectedIds.includes(c.id)),
     [selectedIds]
   );
 
-  const code = useMemo(() => generateIaC(format, provider, selected), [format, provider, selected]);
+  const code = useMemo(() => generateIaC(format, provider, region, selected), [format, provider, region, selected]);
 
   const toggle = (id: string) =>
     setSelectedIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));

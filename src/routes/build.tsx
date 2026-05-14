@@ -2,8 +2,41 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Shield, Server, Database, KeyRound, Box, ChevronLeft, Copy, Download,
-  AlertTriangle, Check, Plus, Minus, FileCode,
+  AlertTriangle, Check, Plus, Minus, FileCode, Globe, Info,
 } from "lucide-react";
+
+const REGIONS: Record<Provider, { id: string; label: string }[]> = {
+  aws: [
+    { id: "us-east-1", label: "US East (N. Virginia)" },
+    { id: "us-east-2", label: "US East (Ohio)" },
+    { id: "us-west-2", label: "US West (Oregon)" },
+    { id: "eu-west-1", label: "Europe (Ireland)" },
+    { id: "eu-central-1", label: "Europe (Frankfurt)" },
+    { id: "ap-southeast-1", label: "Asia Pacific (Singapore)" },
+    { id: "ap-northeast-1", label: "Asia Pacific (Tokyo)" },
+    { id: "sa-east-1", label: "South America (São Paulo)" },
+  ],
+  azure: [
+    { id: "eastus", label: "East US (Virginia)" },
+    { id: "eastus2", label: "East US 2 (Virginia)" },
+    { id: "westus2", label: "West US 2 (Washington)" },
+    { id: "westeurope", label: "West Europe (Netherlands)" },
+    { id: "northeurope", label: "North Europe (Ireland)" },
+    { id: "germanywestcentral", label: "Germany West Central (Frankfurt)" },
+    { id: "southeastasia", label: "Southeast Asia (Singapore)" },
+    { id: "japaneast", label: "Japan East (Tokyo)" },
+  ],
+  gcp: [
+    { id: "us-central1", label: "us-central1 (Iowa)" },
+    { id: "us-east1", label: "us-east1 (South Carolina)" },
+    { id: "us-west1", label: "us-west1 (Oregon)" },
+    { id: "europe-west1", label: "europe-west1 (Belgium)" },
+    { id: "europe-west3", label: "europe-west3 (Frankfurt)" },
+    { id: "asia-southeast1", label: "asia-southeast1 (Singapore)" },
+    { id: "asia-northeast1", label: "asia-northeast1 (Tokyo)" },
+    { id: "southamerica-east1", label: "southamerica-east1 (São Paulo)" },
+  ],
+};
 
 export const Route = createFileRoute("/build")({
   head: () => ({
@@ -166,21 +199,21 @@ const CATALOG: Category[] = [
 
 const PROVIDER_LABEL: Record<Provider, string> = { aws: "AWS", azure: "Azure", gcp: "GCP" };
 
-function generateIaC(format: Format, provider: Provider, selected: Component[]) {
+function generateIaC(format: Format, provider: Provider, region: string, selected: Component[]) {
   if (selected.length === 0) {
-    return `# Select one or more components on the left to generate ${format === "terraform" ? "Terraform" : "CloudFormation"}.\n`;
+    return `# Select one or more components on the left to generate ${format === "terraform" ? "Terraform" : "CloudFormation"}.\n# region: ${region}\n`;
   }
-  if (format === "terraform") return tf(provider, selected);
-  return cfn(selected);
+  if (format === "terraform") return tf(provider, region, selected);
+  return cfn(region, selected);
 }
 
-function tf(provider: Provider, items: Component[]) {
+function tf(provider: Provider, region: string, items: Component[]) {
   const header =
     provider === "aws"
-      ? `terraform {\n  required_providers {\n    aws = { source = "hashicorp/aws", version = "~> 5.0" }\n  }\n}\n\nprovider "aws" {\n  region = "us-east-1"\n}\n`
+      ? `terraform {\n  required_providers {\n    aws = { source = "hashicorp/aws", version = "~> 5.0" }\n  }\n}\n\nprovider "aws" {\n  region = "${region}"\n}\n`
       : provider === "azure"
-      ? `terraform {\n  required_providers {\n    azurerm = { source = "hashicorp/azurerm", version = "~> 3.0" }\n  }\n}\n\nprovider "azurerm" {\n  features {}\n}\n\nresource "azurerm_resource_group" "vbuild" {\n  name     = "vbuild-rg"\n  location = "eastus"\n}\n`
-      : `terraform {\n  required_providers {\n    google = { source = "hashicorp/google", version = "~> 5.0" }\n  }\n}\n\nprovider "google" {\n  project = "vbuild-demo"\n  region  = "us-central1"\n}\n`;
+      ? `terraform {\n  required_providers {\n    azurerm = { source = "hashicorp/azurerm", version = "~> 3.0" }\n  }\n}\n\nprovider "azurerm" {\n  features {}\n}\n\nresource "azurerm_resource_group" "vbuild" {\n  name     = "vbuild-rg"\n  location = "${region}"\n}\n`
+      : `terraform {\n  required_providers {\n    google = { source = "hashicorp/google", version = "~> 5.0" }\n  }\n}\n\nprovider "google" {\n  project = "vbuild-demo"\n  region  = "${region}"\n}\n`;
 
   const blocks = items
     .filter((c) => c.providers.includes(provider))
@@ -220,7 +253,7 @@ function tfBlock(provider: Provider, c: Component) {
   return banner + body;
 }
 
-function cfn(items: Component[]) {
+function cfn(region: string, items: Component[]) {
   const aws = items.filter((c) => c.providers.includes("aws"));
   const skipped = items.filter((c) => !c.providers.includes("aws"));
   const resources = aws
@@ -238,7 +271,7 @@ function cfn(items: Component[]) {
 
   const skip = skipped.map((c) => `# skipped: "${c.name}" — CloudFormation is AWS-only.`).join("\n");
 
-  return `AWSTemplateFormatVersion: "2010-09-09"\nDescription: Vulnerabuild — intentionally vulnerable AWS infrastructure\n\nResources:\n${resources || "  Noop:\n    Type: AWS::CloudFormation::WaitConditionHandle\n"}\n${skip}`;
+  return `AWSTemplateFormatVersion: "2010-09-09"\nDescription: Vulnerabuild — intentionally vulnerable AWS infrastructure (deploy region: ${region})\n\nResources:\n${resources || "  Noop:\n    Type: AWS::CloudFormation::WaitConditionHandle\n"}\n${skip}`;
 }
 
 const pascal = (s: string) => s.replace(/(^|[-_])(\w)/g, (_, __, c) => c.toUpperCase());
@@ -250,14 +283,20 @@ function BuildPage() {
   const [activeCat, setActiveCat] = useState<string>("vm");
   const [format, setFormat] = useState<Format>("terraform");
   const [provider, setProvider] = useState<Provider>("aws");
+  const [region, setRegion] = useState<string>(REGIONS.aws[0].id);
   const [copied, setCopied] = useState(false);
+
+  const changeProvider = (p: Provider) => {
+    setProvider(p);
+    setRegion(REGIONS[p][0].id);
+  };
 
   const selected = useMemo(
     () => CATALOG.flatMap((c) => c.components).filter((c) => selectedIds.includes(c.id)),
     [selectedIds]
   );
 
-  const code = useMemo(() => generateIaC(format, provider, selected), [format, provider, selected]);
+  const code = useMemo(() => generateIaC(format, provider, region, selected), [format, provider, region, selected]);
 
   const toggle = (id: string) =>
     setSelectedIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
@@ -431,8 +470,23 @@ function BuildPage() {
                     { value: "gcp", label: "GCP", disabled: format === "cloudformation" },
                   ]}
                   value={provider}
-                  onChange={(v) => setProvider(v as Provider)}
+                  onChange={(v) => changeProvider(v as Provider)}
                 />
+                <div className="relative inline-flex items-center" title={`Region IDs are provider-specific (${PROVIDER_LABEL[provider]} format).`}>
+                  <Globe className="absolute left-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <select
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                    className="appearance-none rounded-md border border-border bg-background/60 pl-7 pr-7 py-1.5 font-mono text-xs hover:bg-background focus:outline-none focus:border-primary/60 cursor-pointer"
+                  >
+                    {REGIONS[provider].map((r) => (
+                      <option key={r.id} value={r.id} className="bg-background">
+                        {r.id} — {r.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronLeft className="absolute right-2 h-3 w-3 text-muted-foreground pointer-events-none -rotate-90" />
+                </div>
                 <div className="h-5 w-px bg-border" />
                 <button
                   onClick={copy}
@@ -451,7 +505,11 @@ function BuildPage() {
               </div>
             </div>
 
-            {/* code */}
+            <div className="px-4 py-2 border-b border-border bg-background/20 flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
+              <Info className="h-3 w-3 text-primary flex-shrink-0" />
+              region IDs differ per CSP — AWS uses <span className="text-foreground">us-east-1</span>, Azure uses <span className="text-foreground">eastus</span>, GCP uses <span className="text-foreground">us-central1</span>.
+            </div>
+
             <div className="relative">
               <pre className="p-5 font-mono text-[12.5px] leading-relaxed overflow-auto max-h-[70vh] text-foreground/90">
                 <code>{code}</code>

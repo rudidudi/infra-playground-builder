@@ -1535,13 +1535,33 @@ function BuildPage() {
         {/* RIGHT: generator */}
         <section className="col-span-12 lg:col-span-7 xl:col-span-8">
           <div className="rounded-xl border border-border bg-card/60 overflow-hidden">
-            {/* controls */}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-border bg-background/40">
-              <div className="flex items-center gap-2">
-                <FileCode className="h-4 w-4 text-primary" />
-                <span className="font-mono text-sm">infrastructure-as-code</span>
+            {/* Row 1 — title + actions (anchored, never wraps) */}
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-background/40">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileCode className="h-4 w-4 text-primary flex-shrink-0" />
+                <span className="font-mono text-sm truncate">infrastructure-as-code</span>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={copy}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background/60 px-2.5 py-1.5 font-mono text-xs hover:bg-background"
+                >
+                  {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                  <span className="hidden sm:inline">{copied ? "copied" : "copy"}</span>
+                </button>
+                <button
+                  onClick={download}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-2.5 py-1.5 font-mono text-xs hover:opacity-90"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">download</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Row 2 — format / provider / region (wraps freely without affecting the actions above) */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 border-b border-border bg-background/20">
+              <ControlGroup label="format">
                 <SegmentedControl
                   options={[
                     { value: "terraform", label: "Terraform" },
@@ -1550,6 +1570,8 @@ function BuildPage() {
                   value={format}
                   onChange={(v) => setFormat(v as Format)}
                 />
+              </ControlGroup>
+              <ControlGroup label="cloud">
                 <SegmentedControl
                   options={[
                     { value: "aws", label: "AWS" },
@@ -1559,6 +1581,8 @@ function BuildPage() {
                   value={provider}
                   onChange={(v) => changeProvider(v as Provider)}
                 />
+              </ControlGroup>
+              <ControlGroup label="region">
                 <div className="relative inline-flex items-center" title={`Region IDs are provider-specific (${PROVIDER_LABEL[provider]} format).`}>
                   <Globe className="absolute left-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                   <select
@@ -1574,22 +1598,7 @@ function BuildPage() {
                   </select>
                   <ChevronLeft className="absolute right-2 h-3 w-3 text-muted-foreground pointer-events-none -rotate-90" />
                 </div>
-                <div className="h-5 w-px bg-border" />
-                <button
-                  onClick={copy}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background/60 px-2.5 py-1.5 font-mono text-xs hover:bg-background"
-                >
-                  {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied ? "copied" : "copy"}
-                </button>
-                <button
-                  onClick={download}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-2.5 py-1.5 font-mono text-xs hover:opacity-90"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  download
-                </button>
-              </div>
+              </ControlGroup>
             </div>
 
             <div className="px-4 py-2 border-b border-border bg-background/20 flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
@@ -1631,6 +1640,15 @@ function VulnRow({ v }: { v: { id: string; title: string; severity: "critical" |
         <span className="text-xs font-medium truncate">{v.title}</span>
       </div>
       <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{v.desc}</p>
+    </div>
+  );
+}
+
+function ControlGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="inline-flex items-center gap-2">
+      <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      {children}
     </div>
   );
 }

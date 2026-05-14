@@ -77,9 +77,9 @@ function Hero() {
               Train red teams, run CTFs, validate detections — without manually building target infra.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <button className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition glow-primary">
+              <Link to="/build" className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition glow-primary">
                 <Rocket className="h-4 w-4" /> start building
-              </button>
+              </Link>
               <button className="inline-flex items-center gap-2 rounded-md border border-border bg-card/50 px-5 py-3 text-sm font-medium hover:bg-card transition">
                 <GitBranch className="h-4 w-4" /> view scenarios
               </button>

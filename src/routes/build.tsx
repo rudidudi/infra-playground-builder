@@ -344,9 +344,11 @@ const CATALOG: Category[] = [
   },
 ];
 
-// Standards references per vulnerability ID — CWE (weakness type), CVSS v3.1 base score, CIS Benchmark control.
-// CIS is only included where a direct, well-known mapping exists; CWE/CVSS are provided for every vuln.
-type VulnRefs = { cwe?: string; cvss?: string; cis?: string };
+// Standards references per vulnerability ID — CWE (weakness type), CVSS v3.1 base score,
+// CIS Benchmark control, and a representative CVE where the misconfig has a direct, well-known
+// software-CVE mapping (TLS protocol attacks, container-escape primitives, EOL OS examples).
+// Most catalog items are pure misconfigurations and do not have a CVE.
+type VulnRefs = { cwe?: string; cvss?: string; cis?: string; cve?: string };
 
 const VULN_REFS: Record<string, VulnRefs> = {
   // --- VM ---
@@ -355,8 +357,8 @@ const VULN_REFS: Record<string, VulnRefs> = {
   "LOG-002": { cwe: "CWE-778", cvss: "5.3", cis: "CIS AWS 3.9" },
   "EC2-022": { cwe: "CWE-918", cvss: "9.1", cis: "CIS AWS 5.6" },
   "IAM-031": { cwe: "CWE-269", cvss: "8.1", cis: "CIS AWS 1.16" },
-  "VM-201":  { cwe: "CWE-1104", cvss: "7.5" },
-  "VM-203":  { cwe: "CWE-1104", cvss: "5.3" },
+  "VM-201":  { cwe: "CWE-1104", cvss: "7.5", cve: "CVE-2021-4034" },
+  "VM-203":  { cwe: "CWE-1104", cvss: "5.3", cve: "CVE-2024-3094" },
   "VM-301":  { cwe: "CWE-311", cvss: "7.5", cis: "CIS AWS 2.2.1" },
   "VM-303":  { cwe: "CWE-311", cvss: "5.3", cis: "CIS AWS 2.2.1" },
   "SEC-201": { cwe: "CWE-798", cvss: "9.1" },
@@ -396,9 +398,9 @@ const VULN_REFS: Record<string, VulnRefs> = {
 
   // --- Container ---
   "REG-001": { cwe: "CWE-306", cvss: "9.1" },
-  "REG-004": { cwe: "CWE-1035", cvss: "5.3", cis: "CIS Docker 4.4" },
-  "K8S-101": { cwe: "CWE-269", cvss: "9.8", cis: "CIS K8s 5.2.1" },
-  "K8S-108": { cwe: "CWE-552", cvss: "9.8", cis: "CIS K8s 5.2.4" },
+  "REG-004": { cwe: "CWE-1035", cvss: "5.3", cis: "CIS Docker 4.4", cve: "CVE-2021-44228" },
+  "K8S-101": { cwe: "CWE-269", cvss: "9.8", cis: "CIS K8s 5.2.1", cve: "CVE-2024-21626" },
+  "K8S-108": { cwe: "CWE-552", cvss: "9.8", cis: "CIS K8s 5.2.4", cve: "CVE-2022-0492" },
   "K8S-115": { cwe: "CWE-269", cvss: "8.8", cis: "CIS K8s 5.1.5" },
   "K8S-201": { cwe: "CWE-668", cvss: "7.5", cis: "CIS K8s 5.4.1" },
   "K8S-205": { cwe: "CWE-306", cvss: "9.8", cis: "CIS K8s 1.2.1" },
@@ -417,8 +419,8 @@ const VULN_REFS: Record<string, VulnRefs> = {
   "FN-016":  { cwe: "CWE-441", cvss: "8.1" },
 
   // --- Network ---
-  "NET-101": { cwe: "CWE-326", cvss: "7.5" },
-  "NET-103": { cwe: "CWE-327", cvss: "5.3" },
+  "NET-101": { cwe: "CWE-326", cvss: "7.5", cve: "CVE-2014-3566" },
+  "NET-103": { cwe: "CWE-327", cvss: "5.3", cve: "CVE-2016-2183" },
   "NET-201": { cwe: "CWE-441", cvss: "9.1" },
   "NET-301": { cwe: "CWE-284", cvss: "7.5" },
   "NET-401": { cwe: "CWE-693", cvss: "5.3" },
@@ -3153,11 +3155,12 @@ function VulnRow({ v }: { v: { id: string; title: string; severity: "critical" |
         <span className="text-xs font-medium truncate">{v.title}</span>
       </div>
       <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{v.desc}</p>
-      {refs && (refs.cwe || refs.cvss || refs.cis) && (
+      {refs && (refs.cwe || refs.cvss || refs.cis || refs.cve) && (
         <div className="mt-2 flex flex-wrap gap-1 font-mono text-[10px]">
           {refs.cwe  && <span className="px-1.5 py-0.5 rounded border border-border/60 bg-background/60 text-muted-foreground">{refs.cwe}</span>}
           {refs.cvss && <span className="px-1.5 py-0.5 rounded border border-border/60 bg-background/60 text-muted-foreground">CVSS {refs.cvss}</span>}
           {refs.cis  && <span className="px-1.5 py-0.5 rounded border border-border/60 bg-background/60 text-muted-foreground">{refs.cis}</span>}
+          {refs.cve  && <span className="px-1.5 py-0.5 rounded border border-destructive/40 bg-destructive/10 text-destructive">{refs.cve}</span>}
         </div>
       )}
     </div>

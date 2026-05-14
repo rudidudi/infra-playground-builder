@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Shield, Server, Database, KeyRound, Box, ChevronLeft, Copy, Download,
-  AlertTriangle, Check, Plus, Minus, FileCode, Globe, Info,
+  AlertTriangle, Check, Plus, Minus, FileCode, Globe, Info, Zap, Network,
 } from "lucide-react";
 
 const REGIONS: Record<Provider, { id: string; label: string }[]> = {
@@ -72,7 +72,7 @@ type Category = {
 const CATALOG: Category[] = [
   {
     id: "vm", name: "VM", icon: Server,
-    desc: "Compute instances with weak network and identity posture.",
+    desc: "Compute instances with weak network, identity, and host hygiene.",
     components: [
       {
         id: "vm-public-ssh", name: "Public SSH/RDP host", short: "0.0.0.0/0 ingress on 22 / 3389",
@@ -84,10 +84,10 @@ const CATALOG: Category[] = [
         ],
       },
       {
-        id: "vm-imds-v1", name: "IMDSv1 instance", short: "SSRF-prone metadata endpoint",
+        id: "vm-imds-v1", name: "SSRF→IMDS chain", short: "IMDSv1 + over-permissive role (Capital One pattern)",
         providers: ["aws"],
         vulns: [
-          { id: "EC2-022", title: "IMDSv1 enabled", severity: "critical", desc: "Legacy metadata service exposes role credentials to SSRF." },
+          { id: "EC2-022", title: "IMDSv1 enabled", severity: "critical", desc: "Legacy metadata service exposes role credentials to SSRF — Capital One 2019 pattern." },
           { id: "IAM-031", title: "Over-permissive instance role", severity: "high", desc: "Attached role has wildcard s3:* and iam:PassRole." },
         ],
       },
@@ -95,15 +95,31 @@ const CATALOG: Category[] = [
         id: "vm-outdated-ami", name: "Outdated image", short: "Unpatched OS with known CVEs",
         providers: ["aws", "azure", "gcp"],
         vulns: [
-          { id: "VM-201", title: "Stale base image", severity: "high", desc: "Boots a 2019 OS image with multiple unpatched CVEs." },
+          { id: "VM-201", title: "Stale base image", severity: "high", desc: "Boots an EOL OS image with multiple unpatched CVEs." },
           { id: "VM-203", title: "Auto-update disabled", severity: "medium", desc: "Unattended upgrades / WSUS disabled at provisioning." },
+        ],
+      },
+      {
+        id: "vm-unencrypted-disk", name: "Unencrypted volume", short: "Data disk without CMK",
+        providers: ["aws", "azure", "gcp"],
+        vulns: [
+          { id: "VM-301", title: "Storage encryption off", severity: "high", desc: "Volume created without a customer-managed key — data at rest only platform-default protected." },
+          { id: "VM-303", title: "Snapshot inherits no encryption", severity: "medium", desc: "Snapshots of the volume are also unencrypted." },
+        ],
+      },
+      {
+        id: "vm-secrets-userdata", name: "Secrets in user_data", short: "Plaintext creds in bootstrap",
+        providers: ["aws", "azure", "gcp"],
+        vulns: [
+          { id: "SEC-201", title: "API key in user_data", severity: "critical", desc: "Cloud-init / custom_data / startup-script contains plaintext API tokens and DB credentials." },
+          { id: "SEC-203", title: "user_data readable via IMDS", severity: "high", desc: "Bootstrap script retrievable through the metadata service — credential bleed." },
         ],
       },
     ],
   },
   {
     id: "data", name: "Data", icon: Database,
-    desc: "Object stores and databases with weak access control and encryption.",
+    desc: "Object stores, databases, and caches with weak access control and encryption.",
     components: [
       {
         id: "data-public-bucket", name: "Public object bucket", short: "Anonymous read/write on objects",
@@ -124,10 +140,36 @@ const CATALOG: Category[] = [
         ],
       },
       {
-        id: "data-no-audit", name: "Audit logging disabled", short: "Silent data plane",
+        id: "data-no-audit", name: "Audit logging disabled", short: "Silent control + data plane",
         providers: ["aws", "azure", "gcp"],
         vulns: [
-          { id: "LOG-009", title: "Data events off", severity: "medium", desc: "Object-level / data-plane audit events not captured." },
+          { id: "LOG-007", title: "Control-plane audit off", severity: "high", desc: "Management events (CreateUser, AssumeRole, …) not captured." },
+          { id: "LOG-009", title: "Data-plane events off", severity: "medium", desc: "Object-level / data-plane audit events not captured." },
+        ],
+      },
+      {
+        id: "data-public-search", name: "Public search domain", short: "Elasticsearch / OpenSearch open to the world",
+        providers: ["aws"],
+        vulns: [
+          { id: "OS-001", title: "Domain accessible from 0.0.0.0/0", severity: "critical", desc: "Search endpoint open to the public internet — recurring data-leak vector." },
+          { id: "OS-003", title: "No fine-grained access control", severity: "critical", desc: "Master user disabled; no per-index permissions." },
+          { id: "OS-007", title: "Audit logs disabled", severity: "medium", desc: "Slow / audit log exports off." },
+        ],
+      },
+      {
+        id: "data-public-snapshot", name: "Public DB/disk snapshot", short: "Snapshot shared with all accounts",
+        providers: ["aws", "azure", "gcp"],
+        vulns: [
+          { id: "SNAP-001", title: "Snapshot shared with all", severity: "critical", desc: "RDS / EBS / managed-disk snapshot marked public — restorable by anyone." },
+          { id: "SNAP-005", title: "Snapshot unencrypted", severity: "high", desc: "Snapshot contents accessible without a CMK." },
+        ],
+      },
+      {
+        id: "data-cache-open", name: "Open cache instance", short: "Redis / ElastiCache without AUTH",
+        providers: ["aws", "azure", "gcp"],
+        vulns: [
+          { id: "CACHE-001", title: "No AUTH token", severity: "critical", desc: "Cache accepts unauthenticated commands — full data dump trivial." },
+          { id: "CACHE-005", title: "Public network access", severity: "high", desc: "Cache placed in a public subnet / no firewall rules." },
         ],
       },
     ],
@@ -141,7 +183,7 @@ const CATALOG: Category[] = [
         providers: ["aws", "azure", "gcp"],
         vulns: [
           { id: "IAM-001", title: "Admin policy attached", severity: "critical", desc: "Principal granted *:* on all resources." },
-          { id: "IAM-005", title: "Static access keys", severity: "high", desc: "Programmatic access via long-lived keys, never rotated." },
+          { id: "IAM-005", title: "Long-lived static keys", severity: "high", desc: "Programmatic access via never-rotated keys — biggest 2025-era cloud breach vector." },
           { id: "IAM-009", title: "MFA not enforced", severity: "high", desc: "No MFA condition on the trust or access policy." },
         ],
       },
@@ -158,6 +200,31 @@ const CATALOG: Category[] = [
         providers: ["gcp", "azure"],
         vulns: [
           { id: "IAM-014", title: "Owner role on SA", severity: "critical", desc: "Service account has project-wide owner role and is bound to a Compute VM." },
+        ],
+      },
+      {
+        id: "id-oidc-trust", name: "Weak OIDC trust", short: "GitHub Actions OIDC without sub restriction",
+        providers: ["aws", "azure", "gcp"],
+        vulns: [
+          { id: "IAM-040", title: "OIDC trust without sub restriction", severity: "critical", desc: "Trust policy allows any repository / workflow to assume the role — confused-deputy primitive." },
+          { id: "IAM-041", title: "Audience claim not pinned", severity: "high", desc: "aud condition missing or wildcarded." },
+        ],
+      },
+      {
+        id: "id-root-account", name: "Root account hygiene", short: "Root keys / no MFA / no detection",
+        providers: ["aws"],
+        vulns: [
+          { id: "IAM-050", title: "Root has access keys", severity: "critical", desc: "Long-lived programmatic access on the root account — irrecoverable on compromise." },
+          { id: "IAM-051", title: "MFA not enabled on root", severity: "critical", desc: "Root sign-in protected only by password." },
+          { id: "IAM-052", title: "No detection of root usage", severity: "high", desc: "No CloudWatch alarm or AWS Config rule firing on root sign-in." },
+        ],
+      },
+      {
+        id: "id-no-password-policy", name: "Weak password policy", short: "No complexity / rotation rules",
+        providers: ["aws"],
+        vulns: [
+          { id: "IAM-070", title: "No password complexity", severity: "medium", desc: "Min length 4, no uppercase / digit / symbol requirements." },
+          { id: "IAM-072", title: "No password rotation", severity: "medium", desc: "max_password_age unset — passwords valid indefinitely." },
         ],
       },
     ],
@@ -191,6 +258,88 @@ const CATALOG: Category[] = [
           { id: "K8S-205", title: "Anonymous auth allowed", severity: "critical", desc: "anonymous-auth=true on the API server." },
         ],
       },
+      {
+        id: "ctr-sa-token", name: "Mounted SA token + broad RBAC", short: "Default SA can list secrets cluster-wide",
+        providers: ["aws", "azure", "gcp"],
+        vulns: [
+          { id: "K8S-050", title: "automountServiceAccountToken default-on", severity: "high", desc: "Pod inherits a token at /var/run/secrets — stealable on compromise." },
+          { id: "K8S-052", title: "SA can list secrets cluster-wide", severity: "high", desc: "Bound role allows get / list on Secrets in all namespaces." },
+        ],
+      },
+      {
+        id: "ctr-image-as-root", name: "Container runs as root", short: "UID 0, writable rootfs",
+        providers: ["aws", "azure", "gcp"],
+        vulns: [
+          { id: "K8S-060", title: "runAsNonRoot not enforced", severity: "high", desc: "Pod spec does not require non-root execution." },
+          { id: "K8S-062", title: "Writable root filesystem", severity: "medium", desc: "No readOnlyRootFilesystem — attacker can drop persistent binaries." },
+        ],
+      },
+    ],
+  },
+  {
+    id: "serverless", name: "Serverless", icon: Zap,
+    desc: "Functions and FaaS with weak invocation, identity, and secret hygiene.",
+    components: [
+      {
+        id: "fn-public-url", name: "Public function URL", short: "Anonymous invoke + admin role",
+        providers: ["aws", "azure", "gcp"],
+        vulns: [
+          { id: "FN-001", title: "Unauthenticated invoke", severity: "critical", desc: "Function URL / HTTP trigger allows anonymous invocation." },
+          { id: "FN-002", title: "Attached admin role", severity: "high", desc: "Execution role / SA has wildcard *:* on the account." },
+          { id: "LOG-011", title: "Invoke logs disabled", severity: "medium", desc: "CloudWatch / Cloud Logging / App Insights logging not configured." },
+        ],
+      },
+      {
+        id: "fn-secrets-env", name: "Secrets in environment", short: "Hardcoded API keys in env vars",
+        providers: ["aws", "azure", "gcp"],
+        vulns: [
+          { id: "SEC-101", title: "Hardcoded API key in env", severity: "critical", desc: "Function env vars contain plaintext tokens / DB creds — readable by anyone with describe-function." },
+          { id: "SEC-102", title: "Env vars unencrypted at rest", severity: "high", desc: "Function environment is not encrypted with a customer-managed key." },
+        ],
+      },
+      {
+        id: "fn-loose-policy", name: "Over-broad resource policy", short: "Wildcard principal can invoke",
+        providers: ["aws", "azure", "gcp"],
+        vulns: [
+          { id: "FN-014", title: "Wildcard invoke permission", severity: "high", desc: "Resource policy grants invoke to *." },
+          { id: "FN-016", title: "Cross-account without ExternalId", severity: "high", desc: "Trust allows arbitrary external accounts — no condition keys scope it." },
+        ],
+      },
+    ],
+  },
+  {
+    id: "network", name: "Network", icon: Network,
+    desc: "Edge, DNS, and TLS with weak perimeter posture.",
+    components: [
+      {
+        id: "net-tls-weak", name: "Weak TLS on public LB", short: "TLS 1.0/1.1 + weak ciphers",
+        providers: ["aws", "azure", "gcp"],
+        vulns: [
+          { id: "NET-101", title: "TLS 1.0/1.1 enabled", severity: "high", desc: "Listener accepts deprecated TLS versions known to be broken." },
+          { id: "NET-103", title: "Weak cipher suites", severity: "medium", desc: "RC4 / 3DES / CBC ciphers allowed." },
+        ],
+      },
+      {
+        id: "net-dangling-dns", name: "Dangling DNS record", short: "Subdomain takeover risk",
+        providers: ["aws", "azure", "gcp"],
+        vulns: [
+          { id: "NET-201", title: "DNS points to deleted resource", severity: "critical", desc: "CNAME references a deprovisioned cloud resource — attacker can re-register the underlying name and hijack the subdomain." },
+        ],
+      },
+      {
+        id: "net-public-origin", name: "CDN-bypassable origin", short: "Origin reachable directly, bypasses WAF",
+        providers: ["aws", "azure", "gcp"],
+        vulns: [
+          { id: "NET-301", title: "Origin reachable from internet", severity: "high", desc: "ALB / origin has 0.0.0.0/0 ingress; clients can skip the CDN / WAF entirely." },
+        ],
+      },
+      {
+        id: "net-no-waf", name: "Public app without WAF", short: "No L7 protection",
+        providers: ["aws", "azure", "gcp"],
+        vulns: [
+          { id: "NET-401", title: "No WAF in front of app", severity: "medium", desc: "Public LB / Front Door / Cloud Load Balancer has no WAF / Cloud Armor managed rule set." },
+        ],
+      },
     ],
   },
 ];
@@ -209,18 +358,32 @@ function generateIaC(format: Format, provider: Provider, region: string, selecte
 
 // --- Terraform per-provider headers ---
 
-type HeaderOpts = { needsK8s: boolean };
+type ExtraProvider = "kubernetes" | "archive";
+type HeaderOpts = { extras: Set<ExtraProvider> };
+
+const EXTRA_PROVIDER_REQS: Record<ExtraProvider, string> = {
+  kubernetes: `    kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.0" }`,
+  archive:    `    archive    = { source = "hashicorp/archive",    version = "~> 2.0" }`,
+};
+
+const K8S_CONFIG_NOTE: Record<Provider, string> = {
+  aws:   `\n# Configure the kubernetes provider against your EKS cluster before applying pod / RBAC resources:\n# provider "kubernetes" {\n#   config_path = "~/.kube/config"\n# }\n`,
+  azure: `\n# Configure the kubernetes provider against your AKS cluster before applying pod / RBAC resources.\n`,
+  gcp:   `\n# Configure the kubernetes provider against your GKE cluster before applying pod / RBAC resources.\n`,
+};
+
+function renderExtras(extras: Set<ExtraProvider>): string {
+  if (extras.size === 0) return "";
+  return "\n" + [...extras].map((e) => EXTRA_PROVIDER_REQS[e]).join("\n");
+}
 
 const TF_HEADERS: Record<Provider, (region: string, opts: HeaderOpts) => string> = {
-  aws: (region, { needsK8s }) => {
-    const k8sReq = needsK8s ? `\n    kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.0" }` : "";
-    const k8sNote = needsK8s
-      ? `\n# Configure the kubernetes provider against your EKS cluster before applying privileged-pod resources:\n# provider "kubernetes" {\n#   config_path = "~/.kube/config"\n# }\n`
-      : "";
+  aws: (region, { extras }) => {
+    const k8sNote = extras.has("kubernetes") ? K8S_CONFIG_NOTE.aws : "";
     return `terraform {
   required_providers {
     aws    = { source = "hashicorp/aws",    version = "~> 5.0" }
-    random = { source = "hashicorp/random", version = "~> 3.6" }${k8sReq}
+    random = { source = "hashicorp/random", version = "~> 3.6" }${renderExtras(extras)}
   }
 }
 
@@ -233,16 +396,13 @@ resource "random_id" "suffix" {
 }
 ${k8sNote}`;
   },
-  azure: (region, { needsK8s }) => {
-    const k8sReq = needsK8s ? `\n    kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.0" }` : "";
-    const k8sNote = needsK8s
-      ? `\n# Configure the kubernetes provider against your AKS cluster before applying privileged-pod resources.\n`
-      : "";
+  azure: (region, { extras }) => {
+    const k8sNote = extras.has("kubernetes") ? K8S_CONFIG_NOTE.azure : "";
     return `terraform {
   required_providers {
     azurerm = { source = "hashicorp/azurerm", version = "~> 3.0" }
     azuread = { source = "hashicorp/azuread", version = "~> 2.0" }
-    random  = { source = "hashicorp/random",  version = "~> 3.6" }${k8sReq}
+    random  = { source = "hashicorp/random",  version = "~> 3.6" }${renderExtras(extras)}
   }
 }
 
@@ -260,15 +420,12 @@ resource "azurerm_resource_group" "vbuild" {
 }
 ${k8sNote}`;
   },
-  gcp: (region, { needsK8s }) => {
-    const k8sReq = needsK8s ? `\n    kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.0" }` : "";
-    const k8sNote = needsK8s
-      ? `\n# Configure the kubernetes provider against your GKE cluster before applying privileged-pod resources.\n`
-      : "";
+  gcp: (region, { extras }) => {
+    const k8sNote = extras.has("kubernetes") ? K8S_CONFIG_NOTE.gcp : "";
     return `terraform {
   required_providers {
     google = { source = "hashicorp/google", version = "~> 5.0" }
-    random = { source = "hashicorp/random", version = "~> 3.6" }${k8sReq}
+    random = { source = "hashicorp/random", version = "~> 3.6" }${renderExtras(extras)}
   }
 }
 
@@ -321,21 +478,7 @@ resource "aws_instance" "vm_public_ssh" {
   tags = { Name = "vbuild-vm-public-ssh" }
 }
 `,
-    azure: () => `resource "azurerm_virtual_network" "vbuild" {
-  name                = "vbuild-vnet"
-  address_space       = ["10.0.0.0/16"]
-  location            = azurerm_resource_group.vbuild.location
-  resource_group_name = azurerm_resource_group.vbuild.name
-}
-
-resource "azurerm_subnet" "vbuild" {
-  name                 = "vbuild-subnet"
-  resource_group_name  = azurerm_resource_group.vbuild.name
-  virtual_network_name = azurerm_virtual_network.vbuild.name
-  address_prefixes     = ["10.0.1.0/24"]
-}
-
-resource "azurerm_network_security_group" "vm_public_ssh" {
+    azure: () => `resource "azurerm_network_security_group" "vm_public_ssh" {
   name                = "vbuild-vm-public-ssh-nsg"
   location            = azurerm_resource_group.vbuild.location
   resource_group_name = azurerm_resource_group.vbuild.name
@@ -986,6 +1129,893 @@ resource "aws_eks_cluster" "ctr_public_cluster" {
 }
 `,
   },
+  "vm-unencrypted-disk": {
+    aws: (region) => `resource "aws_ebs_volume" "vm_unencrypted_disk" {
+  availability_zone = "${region}a"
+  size              = 8
+  encrypted         = false # Missing CMK; only platform-default at-rest protection.
+  tags = { Name = "vbuild-vm-unencrypted-disk" }
+}
+`,
+    azure: () => `resource "azurerm_managed_disk" "vm_unencrypted_disk" {
+  name                 = "vbuild-vm-unencrypted-disk"
+  location             = azurerm_resource_group.vbuild.location
+  resource_group_name  = azurerm_resource_group.vbuild.name
+  storage_account_type = "Standard_LRS"
+  create_option        = "Empty"
+  disk_size_gb         = 8
+  # No disk_encryption_set_id — uses default platform key, no CMK.
+}
+`,
+    gcp: (region) => `resource "google_compute_disk" "vm_unencrypted_disk" {
+  name = "vbuild-vm-unencrypted-disk"
+  zone = "${region}-a"
+  size = 8
+  type = "pd-standard"
+  # No disk_encryption_key block — Google-managed key only.
+}
+`,
+  },
+
+  "vm-secrets-userdata": {
+    aws: () => `resource "aws_instance" "vm_secrets_userdata" {
+  ami                         = data.aws_ami.al2023.id
+  instance_type               = "t3.micro"
+  associate_public_ip_address = true
+  user_data                   = <<-EOT
+    #!/bin/bash
+    export DB_PASSWORD="hunter2-prod"
+    export STRIPE_KEY="sk_live_REDACTED_BUT_NOT_REALLY"
+    aws s3 cp s3://vbuild-config/app.env /etc/app.env
+  EOT
+  tags = { Name = "vbuild-vm-secrets-userdata" }
+}
+`,
+    azure: () => `resource "azurerm_network_interface" "vm_secrets_userdata" {
+  name                = "vbuild-vm-secrets-userdata-nic"
+  location            = azurerm_resource_group.vbuild.location
+  resource_group_name = azurerm_resource_group.vbuild.name
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.vbuild.id
+    private_ip_address_allocation = "Dynamic"
+  }
+}
+
+resource "azurerm_linux_virtual_machine" "vm_secrets_userdata" {
+  name                            = "vbuild-vm-secrets-userdata"
+  location                        = azurerm_resource_group.vbuild.location
+  resource_group_name             = azurerm_resource_group.vbuild.name
+  size                            = "Standard_B1s"
+  admin_username                  = "vbuild"
+  admin_password                  = "P@ssw0rd-vbuild!"
+  disable_password_authentication = false
+  network_interface_ids           = [azurerm_network_interface.vm_secrets_userdata.id]
+  custom_data = base64encode(<<-EOT
+    #!/bin/bash
+    export DB_PASSWORD="hunter2-prod"
+    export STRIPE_KEY="sk_live_REDACTED_BUT_NOT_REALLY"
+  EOT
+  )
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts"
+    version   = "latest"
+  }
+}
+`,
+    gcp: (region) => `resource "google_compute_instance" "vm_secrets_userdata" {
+  name         = "vbuild-vm-secrets-userdata"
+  machine_type = "e2-micro"
+  zone         = "${region}-a"
+  boot_disk {
+    initialize_params { image = "debian-cloud/debian-12" }
+  }
+  network_interface {
+    network = "default"
+    access_config {}
+  }
+  metadata_startup_script = <<-EOT
+    #!/bin/bash
+    export DB_PASSWORD="hunter2-prod"
+    export STRIPE_KEY="sk_live_REDACTED_BUT_NOT_REALLY"
+    gsutil cp gs://vbuild-config/app.env /etc/app.env
+  EOT
+}
+`,
+  },
+
+  "data-public-search": {
+    aws: (region) => `resource "aws_opensearch_domain" "data_public_search" {
+  domain_name    = "vbuild-public-search"
+  engine_version = "OpenSearch_2.11"
+  cluster_config {
+    instance_type  = "t3.small.search"
+    instance_count = 1
+  }
+  ebs_options {
+    ebs_enabled = true
+    volume_size = 10
+  }
+  access_policies = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = "*"
+      Action    = "es:*"
+      Resource  = "arn:aws:es:${region}:*:domain/vbuild-public-search/*"
+    }]
+  })
+  # No advanced_security_options / VPC config — public.
+}
+`,
+  },
+
+  "data-public-snapshot": {
+    aws: () => `resource "aws_instance" "data_public_snapshot_src" {
+  ami           = data.aws_ami.al2023.id
+  instance_type = "t3.micro"
+  tags          = { Name = "vbuild-public-snapshot-src" }
+}
+
+resource "aws_ami_from_instance" "data_public_snapshot" {
+  name               = "vbuild-data-public-snapshot"
+  source_instance_id = aws_instance.data_public_snapshot_src.id
+  description        = "INTENTIONALLY VULNERABLE — public AMI with EBS snapshot"
+}
+
+resource "aws_ami_launch_permission" "data_public_snapshot" {
+  image_id = aws_ami_from_instance.data_public_snapshot.id
+  group    = "all" # SNAP-001: AMI (and underlying EBS snapshot) publicly readable.
+}
+`,
+    azure: () => `resource "azurerm_managed_disk" "data_public_snapshot_src" {
+  name                 = "vbuild-snapshot-src"
+  location             = azurerm_resource_group.vbuild.location
+  resource_group_name  = azurerm_resource_group.vbuild.name
+  storage_account_type = "Standard_LRS"
+  create_option        = "Empty"
+  disk_size_gb         = 8
+}
+
+resource "azurerm_snapshot" "data_public_snapshot" {
+  name                  = "vbuild-data-public-snapshot"
+  location              = azurerm_resource_group.vbuild.location
+  resource_group_name   = azurerm_resource_group.vbuild.name
+  create_option         = "Copy"
+  source_uri            = azurerm_managed_disk.data_public_snapshot_src.id
+  network_access_policy = "AllowAll" # SNAP-001: network access not restricted.
+}
+`,
+    gcp: (region) => `resource "google_compute_disk" "data_public_snapshot_src" {
+  name = "vbuild-snapshot-src"
+  zone = "${region}-a"
+  size = 8
+}
+
+resource "google_compute_snapshot" "data_public_snapshot" {
+  name        = "vbuild-data-public-snapshot"
+  source_disk = google_compute_disk.data_public_snapshot_src.self_link
+  zone        = "${region}-a"
+}
+
+resource "google_compute_snapshot_iam_member" "data_public_snapshot" {
+  name   = google_compute_snapshot.data_public_snapshot.name
+  role   = "roles/compute.viewer"
+  member = "allUsers" # SNAP-001: snapshot accessible by any Google identity.
+}
+`,
+  },
+
+  "data-cache-open": {
+    aws: () => `resource "aws_elasticache_subnet_group" "data_cache_open" {
+  name       = "vbuild-data-cache-open"
+  subnet_ids = data.aws_subnets.default.ids
+}
+
+resource "aws_security_group" "data_cache_open" {
+  name        = "vbuild-data-cache-open"
+  description = "INTENTIONALLY VULNERABLE — Redis open to world"
+  vpc_id      = data.aws_vpc.default.id
+  ingress {
+    from_port   = 6379
+    to_port     = 6379
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_elasticache_cluster" "data_cache_open" {
+  cluster_id           = "vbuild-data-cache-open"
+  engine               = "redis"
+  node_type            = "cache.t3.micro"
+  num_cache_nodes      = 1
+  parameter_group_name = "default.redis7"
+  subnet_group_name    = aws_elasticache_subnet_group.data_cache_open.name
+  security_group_ids   = [aws_security_group.data_cache_open.id]
+  # No transit_encryption_enabled, no auth_token.
+}
+`,
+    azure: () => `resource "azurerm_redis_cache" "data_cache_open" {
+  name                          = "vbuild-cache-\${substr(md5(azurerm_resource_group.vbuild.id), 0, 6)}"
+  location                      = azurerm_resource_group.vbuild.location
+  resource_group_name           = azurerm_resource_group.vbuild.name
+  capacity                      = 0
+  family                        = "C"
+  sku_name                      = "Basic"
+  non_ssl_port_enabled          = true # Plaintext port 6379.
+  public_network_access_enabled = true
+  redis_configuration {
+    # No AUTH; aad_enabled defaults to false.
+  }
+}
+`,
+    gcp: (region) => `resource "google_redis_instance" "data_cache_open" {
+  name                    = "vbuild-data-cache-open"
+  tier                    = "BASIC"
+  memory_size_gb          = 1
+  region                  = "${region}"
+  auth_enabled            = false # CACHE-001: no AUTH on Redis connections.
+  transit_encryption_mode = "DISABLED"
+}
+`,
+  },
+
+  "id-oidc-trust": {
+    aws: () => `resource "aws_iam_openid_connect_provider" "id_oidc_trust" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+}
+
+resource "aws_iam_role" "id_oidc_trust" {
+  name = "vbuild-id-oidc-trust"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Federated = aws_iam_openid_connect_provider.id_oidc_trust.arn }
+      Action    = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+          # IAM-040: no sub-claim restriction — ANY GitHub workflow can assume.
+          # Real fix: "token.actions.githubusercontent.com:sub" = "repo:my-org/my-repo:ref:refs/heads/main"
+        }
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "id_oidc_trust_admin" {
+  role       = aws_iam_role.id_oidc_trust.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+`,
+    azure: () => `resource "azuread_application" "id_oidc_trust" {
+  display_name = "vbuild-id-oidc-trust"
+}
+
+resource "azuread_service_principal" "id_oidc_trust" {
+  client_id = azuread_application.id_oidc_trust.client_id
+}
+
+# IAM-040: subject left wildcard-equivalent; any GitHub workflow can exchange a token.
+resource "azuread_application_federated_identity_credential" "id_oidc_trust" {
+  application_id = azuread_application.id_oidc_trust.id
+  display_name   = "vbuild-gh-oidc"
+  audiences      = ["api://AzureADTokenExchange"]
+  issuer         = "https://token.actions.githubusercontent.com"
+  subject        = "repo:*:*"
+}
+
+resource "azurerm_role_assignment" "id_oidc_trust_owner" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Owner"
+  principal_id         = azuread_service_principal.id_oidc_trust.object_id
+}
+`,
+    gcp: () => `resource "google_iam_workload_identity_pool" "id_oidc_trust" {
+  workload_identity_pool_id = "vbuild-oidc-pool"
+  display_name              = "vbuild OIDC"
+}
+
+resource "google_iam_workload_identity_pool_provider" "id_oidc_trust" {
+  workload_identity_pool_id          = google_iam_workload_identity_pool.id_oidc_trust.workload_identity_pool_id
+  workload_identity_pool_provider_id = "vbuild-github"
+  display_name                       = "vbuild GitHub OIDC"
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.repository" = "assertion.repository"
+  }
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+    # IAM-040: no attribute_condition — any repository authenticates.
+  }
+}
+
+resource "google_service_account" "id_oidc_trust" {
+  account_id   = "vbuild-oidc-sa"
+  display_name = "vbuild OIDC SA"
+}
+
+resource "google_service_account_iam_member" "id_oidc_trust" {
+  service_account_id = google_service_account.id_oidc_trust.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/\${google_iam_workload_identity_pool.id_oidc_trust.name}/*"
+}
+
+resource "google_project_iam_member" "id_oidc_trust_owner" {
+  project = var.project_id
+  role    = "roles/owner"
+  member  = "serviceAccount:\${google_service_account.id_oidc_trust.email}"
+}
+`,
+  },
+
+  "id-root-account": {
+    aws: () => `# Root account itself cannot be managed via Terraform — IAM API rejects root operations.
+# The expected operator response is to set up detection (Config + EventBridge) and remediate
+# in the AWS console (rotate / delete keys, enable MFA).
+
+resource "aws_config_config_rule" "root_mfa_enabled" {
+  name = "vbuild-root-mfa-enabled"
+  source {
+    owner             = "AWS"
+    source_identifier = "ROOT_ACCOUNT_MFA_ENABLED"
+  }
+}
+
+resource "aws_config_config_rule" "root_no_access_keys" {
+  name = "vbuild-root-no-access-keys"
+  source {
+    owner             = "AWS"
+    source_identifier = "IAM_ROOT_ACCESS_KEY_CHECK"
+  }
+}
+
+resource "aws_cloudwatch_event_rule" "root_signin_alarm" {
+  name = "vbuild-root-signin-alarm"
+  event_pattern = jsonencode({
+    "detail-type" = ["AWS Console Sign In via CloudTrail"]
+    "detail"      = { "userIdentity" = { "type" = ["Root"] } }
+  })
+}
+`,
+  },
+
+  "id-no-password-policy": {
+    aws: () => `resource "aws_iam_account_password_policy" "id_no_password_policy" {
+  minimum_password_length        = 4
+  require_lowercase_characters   = false
+  require_uppercase_characters   = false
+  require_numbers                = false
+  require_symbols                = false
+  allow_users_to_change_password = true
+  # IAM-072: no max_password_age — passwords valid indefinitely.
+  # No password_reuse_prevention either.
+}
+`,
+  },
+
+  "ctr-sa-token": {
+    aws: () => K8S_SA_TOKEN,
+    azure: () => K8S_SA_TOKEN,
+    gcp: () => K8S_SA_TOKEN,
+  },
+
+  "ctr-image-as-root": {
+    aws: () => K8S_IMAGE_AS_ROOT,
+    azure: () => K8S_IMAGE_AS_ROOT,
+    gcp: () => K8S_IMAGE_AS_ROOT,
+  },
+
+  "fn-public-url": {
+    aws: () => `data "archive_file" "fn_public_url" {
+  type        = "zip"
+  output_path = "\${path.module}/fn_public_url.zip"
+  source {
+    filename = "index.py"
+    content  = "def handler(event, context):\\n    return {'statusCode': 200, 'body': 'vbuild'}\\n"
+  }
+}
+
+resource "aws_iam_role" "fn_public_url" {
+  name = "vbuild-fn-public-url"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{ Effect = "Allow", Principal = { Service = "lambda.amazonaws.com" }, Action = "sts:AssumeRole" }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "fn_public_url_admin" {
+  role       = aws_iam_role.fn_public_url.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+
+resource "aws_lambda_function" "fn_public_url" {
+  function_name    = "vbuild-fn-public-url"
+  role             = aws_iam_role.fn_public_url.arn
+  runtime          = "python3.12"
+  handler          = "index.handler"
+  filename         = data.archive_file.fn_public_url.output_path
+  source_code_hash = data.archive_file.fn_public_url.output_base64sha256
+}
+
+resource "aws_lambda_function_url" "fn_public_url" {
+  function_name      = aws_lambda_function.fn_public_url.function_name
+  authorization_type = "NONE" # FN-001: unauthenticated invoke.
+}
+`,
+    azure: () => `resource "azurerm_storage_account" "fn_public_url" {
+  name                     = "vbuildfn\${substr(md5(azurerm_resource_group.vbuild.id), 0, 6)}"
+  resource_group_name      = azurerm_resource_group.vbuild.name
+  location                 = azurerm_resource_group.vbuild.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+}
+
+resource "azurerm_service_plan" "fn_public_url" {
+  name                = "vbuild-fn-public-url-plan"
+  resource_group_name = azurerm_resource_group.vbuild.name
+  location            = azurerm_resource_group.vbuild.location
+  os_type             = "Linux"
+  sku_name            = "Y1"
+}
+
+resource "azurerm_linux_function_app" "fn_public_url" {
+  name                       = "vbuild-fn-public-url"
+  resource_group_name        = azurerm_resource_group.vbuild.name
+  location                   = azurerm_resource_group.vbuild.location
+  storage_account_name       = azurerm_storage_account.fn_public_url.name
+  storage_account_access_key = azurerm_storage_account.fn_public_url.primary_access_key
+  service_plan_id            = azurerm_service_plan.fn_public_url.id
+  identity { type = "SystemAssigned" }
+  site_config {
+    # No ip_restriction blocks — reachable from anywhere.
+  }
+  auth_settings { enabled = false } # FN-001: anonymous invoke allowed.
+}
+
+resource "azurerm_role_assignment" "fn_public_url_owner" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Owner"
+  principal_id         = azurerm_linux_function_app.fn_public_url.identity[0].principal_id
+}
+`,
+    gcp: (region) => `resource "google_service_account" "fn_public_url" {
+  account_id   = "vbuild-fn-public-url"
+  display_name = "vbuild fn public-url SA"
+}
+
+resource "google_project_iam_member" "fn_public_url_owner" {
+  project = var.project_id
+  role    = "roles/owner"
+  member  = "serviceAccount:\${google_service_account.fn_public_url.email}"
+}
+
+resource "google_storage_bucket" "fn_public_url_src" {
+  name                        = "vbuild-fn-public-url-src-\${var.project_id}"
+  location                    = "US"
+  force_destroy               = true
+  uniform_bucket_level_access = true
+}
+
+resource "google_cloudfunctions2_function" "fn_public_url" {
+  name     = "vbuild-fn-public-url"
+  location = "${region}"
+  build_config {
+    runtime     = "python312"
+    entry_point = "handler"
+    source {
+      storage_source {
+        bucket = google_storage_bucket.fn_public_url_src.name
+        object = "function-source.zip" # Provide your own packaged source.
+      }
+    }
+  }
+  service_config {
+    service_account_email = google_service_account.fn_public_url.email
+    ingress_settings      = "ALLOW_ALL"
+  }
+}
+
+resource "google_cloud_run_service_iam_member" "fn_public_url" {
+  location = google_cloudfunctions2_function.fn_public_url.location
+  service  = google_cloudfunctions2_function.fn_public_url.name
+  role     = "roles/run.invoker"
+  member   = "allUsers" # FN-001: unauthenticated invoke.
+}
+`,
+  },
+
+  "fn-secrets-env": {
+    aws: () => `data "archive_file" "fn_secrets_env" {
+  type        = "zip"
+  output_path = "\${path.module}/fn_secrets_env.zip"
+  source {
+    filename = "index.py"
+    content  = "def handler(event, context):\\n    return {'statusCode': 200}\\n"
+  }
+}
+
+resource "aws_iam_role" "fn_secrets_env" {
+  name = "vbuild-fn-secrets-env"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{ Effect = "Allow", Principal = { Service = "lambda.amazonaws.com" }, Action = "sts:AssumeRole" }]
+  })
+}
+
+resource "aws_lambda_function" "fn_secrets_env" {
+  function_name    = "vbuild-fn-secrets-env"
+  role             = aws_iam_role.fn_secrets_env.arn
+  runtime          = "python3.12"
+  handler          = "index.handler"
+  filename         = data.archive_file.fn_secrets_env.output_path
+  source_code_hash = data.archive_file.fn_secrets_env.output_base64sha256
+  environment {
+    variables = {
+      DB_PASSWORD    = "hunter2-prod"
+      STRIPE_API_KEY = "sk_live_REDACTED_BUT_NOT_REALLY"
+      GITHUB_PAT     = "ghp_redacted_but_not_really"
+    }
+  }
+  # No kms_key_arn — env encrypted only with default Lambda key.
+}
+`,
+    azure: () => `resource "azurerm_storage_account" "fn_secrets_env" {
+  name                     = "vbuildfnsec\${substr(md5(azurerm_resource_group.vbuild.id), 0, 4)}"
+  resource_group_name      = azurerm_resource_group.vbuild.name
+  location                 = azurerm_resource_group.vbuild.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+}
+
+resource "azurerm_service_plan" "fn_secrets_env" {
+  name                = "vbuild-fn-secrets-env-plan"
+  resource_group_name = azurerm_resource_group.vbuild.name
+  location            = azurerm_resource_group.vbuild.location
+  os_type             = "Linux"
+  sku_name            = "Y1"
+}
+
+resource "azurerm_linux_function_app" "fn_secrets_env" {
+  name                       = "vbuild-fn-secrets-env"
+  resource_group_name        = azurerm_resource_group.vbuild.name
+  location                   = azurerm_resource_group.vbuild.location
+  storage_account_name       = azurerm_storage_account.fn_secrets_env.name
+  storage_account_access_key = azurerm_storage_account.fn_secrets_env.primary_access_key
+  service_plan_id            = azurerm_service_plan.fn_secrets_env.id
+  app_settings = {
+    DB_PASSWORD    = "hunter2-prod"
+    STRIPE_API_KEY = "sk_live_REDACTED_BUT_NOT_REALLY"
+    GITHUB_PAT     = "ghp_redacted_but_not_really"
+  }
+  site_config {}
+}
+`,
+    gcp: (region) => `resource "google_storage_bucket" "fn_secrets_env_src" {
+  name                        = "vbuild-fn-secrets-env-src-\${var.project_id}"
+  location                    = "US"
+  force_destroy               = true
+  uniform_bucket_level_access = true
+}
+
+resource "google_cloudfunctions2_function" "fn_secrets_env" {
+  name     = "vbuild-fn-secrets-env"
+  location = "${region}"
+  build_config {
+    runtime     = "python312"
+    entry_point = "handler"
+    source {
+      storage_source {
+        bucket = google_storage_bucket.fn_secrets_env_src.name
+        object = "function-source.zip"
+      }
+    }
+  }
+  service_config {
+    environment_variables = {
+      DB_PASSWORD    = "hunter2-prod"
+      STRIPE_API_KEY = "sk_live_REDACTED_BUT_NOT_REALLY"
+      GITHUB_PAT     = "ghp_redacted_but_not_really"
+    }
+  }
+}
+`,
+  },
+
+  "fn-loose-policy": {
+    aws: () => `data "archive_file" "fn_loose_policy" {
+  type        = "zip"
+  output_path = "\${path.module}/fn_loose_policy.zip"
+  source {
+    filename = "index.py"
+    content  = "def handler(event, context):\\n    return {'statusCode': 200}\\n"
+  }
+}
+
+resource "aws_iam_role" "fn_loose_policy" {
+  name = "vbuild-fn-loose-policy"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{ Effect = "Allow", Principal = { Service = "lambda.amazonaws.com" }, Action = "sts:AssumeRole" }]
+  })
+}
+
+resource "aws_lambda_function" "fn_loose_policy" {
+  function_name    = "vbuild-fn-loose-policy"
+  role             = aws_iam_role.fn_loose_policy.arn
+  runtime          = "python3.12"
+  handler          = "index.handler"
+  filename         = data.archive_file.fn_loose_policy.output_path
+  source_code_hash = data.archive_file.fn_loose_policy.output_base64sha256
+}
+
+resource "aws_lambda_permission" "fn_loose_policy" {
+  statement_id  = "AllowAllInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.fn_loose_policy.function_name
+  principal     = "*" # FN-014: wildcard principal can invoke.
+}
+`,
+    azure: () => `resource "azurerm_storage_account" "fn_loose_policy" {
+  name                     = "vbuildfnpol\${substr(md5(azurerm_resource_group.vbuild.id), 0, 4)}"
+  resource_group_name      = azurerm_resource_group.vbuild.name
+  location                 = azurerm_resource_group.vbuild.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+}
+
+resource "azurerm_service_plan" "fn_loose_policy" {
+  name                = "vbuild-fn-loose-policy-plan"
+  resource_group_name = azurerm_resource_group.vbuild.name
+  location            = azurerm_resource_group.vbuild.location
+  os_type             = "Linux"
+  sku_name            = "Y1"
+}
+
+resource "azurerm_linux_function_app" "fn_loose_policy" {
+  name                       = "vbuild-fn-loose-policy"
+  resource_group_name        = azurerm_resource_group.vbuild.name
+  location                   = azurerm_resource_group.vbuild.location
+  storage_account_name       = azurerm_storage_account.fn_loose_policy.name
+  storage_account_access_key = azurerm_storage_account.fn_loose_policy.primary_access_key
+  service_plan_id            = azurerm_service_plan.fn_loose_policy.id
+  site_config {
+    cors { allowed_origins = ["*"] } # CORS wide-open — cross-origin invocation invited.
+  }
+  auth_settings { enabled = false }
+}
+`,
+    gcp: (region) => `resource "google_storage_bucket" "fn_loose_policy_src" {
+  name                        = "vbuild-fn-loose-policy-src-\${var.project_id}"
+  location                    = "US"
+  force_destroy               = true
+  uniform_bucket_level_access = true
+}
+
+resource "google_cloudfunctions2_function" "fn_loose_policy" {
+  name     = "vbuild-fn-loose-policy"
+  location = "${region}"
+  build_config {
+    runtime     = "python312"
+    entry_point = "handler"
+    source {
+      storage_source {
+        bucket = google_storage_bucket.fn_loose_policy_src.name
+        object = "function-source.zip"
+      }
+    }
+  }
+  service_config {
+    ingress_settings = "ALLOW_ALL"
+  }
+}
+
+resource "google_cloud_run_service_iam_member" "fn_loose_policy" {
+  location = google_cloudfunctions2_function.fn_loose_policy.location
+  service  = google_cloudfunctions2_function.fn_loose_policy.name
+  role     = "roles/run.invoker"
+  member   = "allUsers" # FN-014: unauthenticated invoke.
+}
+`,
+  },
+
+  "net-tls-weak": {
+    aws: () => `# Replace certificate_arn with a real ACM cert ARN before apply.
+resource "aws_lb" "net_tls_weak" {
+  name               = "vbuild-net-tls-weak"
+  internal           = false
+  load_balancer_type = "application"
+  subnets            = data.aws_subnets.default.ids
+}
+
+resource "aws_lb_listener" "net_tls_weak" {
+  load_balancer_arn = aws_lb.net_tls_weak.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS-1-0-2015-04" # NET-101: allows TLS 1.0/1.1.
+  certificate_arn   = "arn:aws:acm:us-east-1:000000000000:certificate/REPLACE-ME"
+  default_action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "vbuild"
+      status_code  = "200"
+    }
+  }
+}
+`,
+    azure: () => `resource "azurerm_service_plan" "net_tls_weak" {
+  name                = "vbuild-net-tls-weak-plan"
+  resource_group_name = azurerm_resource_group.vbuild.name
+  location            = azurerm_resource_group.vbuild.location
+  os_type             = "Linux"
+  sku_name            = "B1"
+}
+
+resource "azurerm_linux_web_app" "net_tls_weak" {
+  name                = "vbuild-net-tls-weak-\${substr(md5(azurerm_resource_group.vbuild.id), 0, 4)}"
+  resource_group_name = azurerm_resource_group.vbuild.name
+  location            = azurerm_service_plan.net_tls_weak.location
+  service_plan_id     = azurerm_service_plan.net_tls_weak.id
+  site_config {
+    minimum_tls_version = "1.0" # NET-101: accepts TLS 1.0/1.1.
+  }
+}
+`,
+    gcp: () => `resource "google_compute_ssl_policy" "net_tls_weak" {
+  name            = "vbuild-net-tls-weak"
+  profile         = "CUSTOM"
+  min_tls_version = "TLS_1_0" # NET-101
+  custom_features = ["TLS_RSA_WITH_3DES_EDE_CBC_SHA"] # NET-103: weak cipher.
+}
+# Wire this ssl_policy to a target_https_proxy to complete the LB.
+`,
+  },
+
+  "net-dangling-dns": {
+    aws: () => `resource "aws_route53_zone" "net_dangling_dns" {
+  name = "vbuild-example.com"
+}
+
+# NET-201: CNAME points at a deleted S3 bucket. An attacker can re-register the
+# bucket name "vbuild-deleted-bucket" and hijack promo.vbuild-example.com.
+resource "aws_route53_record" "net_dangling_dns" {
+  zone_id = aws_route53_zone.net_dangling_dns.zone_id
+  name    = "promo.vbuild-example.com"
+  type    = "CNAME"
+  ttl     = 300
+  records = ["vbuild-deleted-bucket.s3.amazonaws.com"]
+}
+`,
+    azure: () => `resource "azurerm_dns_zone" "net_dangling_dns" {
+  name                = "vbuild-example.com"
+  resource_group_name = azurerm_resource_group.vbuild.name
+}
+
+# NET-201: points at a deprovisioned App Service.
+resource "azurerm_dns_cname_record" "net_dangling_dns" {
+  name                = "promo"
+  zone_name           = azurerm_dns_zone.net_dangling_dns.name
+  resource_group_name = azurerm_resource_group.vbuild.name
+  ttl                 = 300
+  record              = "vbuild-deleted.azurewebsites.net"
+}
+`,
+    gcp: () => `resource "google_dns_managed_zone" "net_dangling_dns" {
+  name        = "vbuild-example-com"
+  dns_name    = "vbuild-example.com."
+  description = "vbuild example zone"
+}
+
+# NET-201: CNAME points at a deleted GCS bucket name; attacker may re-register it.
+resource "google_dns_record_set" "net_dangling_dns" {
+  name         = "promo.\${google_dns_managed_zone.net_dangling_dns.dns_name}"
+  managed_zone = google_dns_managed_zone.net_dangling_dns.name
+  type         = "CNAME"
+  ttl          = 300
+  rrdatas      = ["vbuild-deleted.storage.googleapis.com."]
+}
+`,
+  },
+
+  "net-public-origin": {
+    aws: () => `resource "aws_security_group" "net_public_origin" {
+  name        = "vbuild-net-public-origin"
+  description = "INTENTIONALLY VULNERABLE — ALB reachable directly, bypasses CDN/WAF"
+  vpc_id      = data.aws_vpc.default.id
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # NET-301: should be restricted to CloudFront prefix list.
+  }
+}
+
+resource "aws_lb" "net_public_origin" {
+  name               = "vbuild-net-public-origin"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.net_public_origin.id]
+  subnets            = data.aws_subnets.default.ids
+}
+`,
+    azure: () => `resource "azurerm_service_plan" "net_public_origin" {
+  name                = "vbuild-net-public-origin-plan"
+  resource_group_name = azurerm_resource_group.vbuild.name
+  location            = azurerm_resource_group.vbuild.location
+  os_type             = "Linux"
+  sku_name            = "B1"
+}
+
+resource "azurerm_linux_web_app" "net_public_origin" {
+  name                          = "vbuild-net-public-origin-\${substr(md5(azurerm_resource_group.vbuild.id), 0, 4)}"
+  resource_group_name           = azurerm_resource_group.vbuild.name
+  location                      = azurerm_service_plan.net_public_origin.location
+  service_plan_id               = azurerm_service_plan.net_public_origin.id
+  public_network_access_enabled = true
+  site_config {
+    # No ip_restriction — origin reachable from any IP, bypassing Front Door / WAF.
+  }
+}
+`,
+    gcp: (region) => `resource "google_compute_firewall" "net_public_origin" {
+  name          = "vbuild-net-public-origin"
+  network       = "default"
+  source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["80"]
+  }
+}
+
+resource "google_compute_instance" "net_public_origin" {
+  name         = "vbuild-net-public-origin"
+  machine_type = "e2-micro"
+  zone         = "${region}-a"
+  boot_disk {
+    initialize_params { image = "debian-cloud/debian-12" }
+  }
+  network_interface {
+    network = "default"
+    access_config {}
+  }
+}
+`,
+  },
+
+  "net-no-waf": {
+    aws: () => `resource "aws_lb" "net_no_waf" {
+  name               = "vbuild-net-no-waf"
+  internal           = false
+  load_balancer_type = "application"
+  subnets            = data.aws_subnets.default.ids
+}
+# NET-401: no aws_wafv2_web_acl_association — ALB unprotected at L7.
+`,
+    azure: () => `resource "azurerm_cdn_frontdoor_profile" "net_no_waf" {
+  name                = "vbuild-net-no-waf"
+  resource_group_name = azurerm_resource_group.vbuild.name
+  sku_name            = "Standard_AzureFrontDoor"
+  # NET-401: no azurerm_cdn_frontdoor_security_policy associated.
+}
+`,
+    gcp: () => `resource "google_compute_backend_service" "net_no_waf" {
+  name                  = "vbuild-net-no-waf"
+  protocol              = "HTTP"
+  load_balancing_scheme = "EXTERNAL"
+  # NET-401: no security_policy — no Cloud Armor managed rule set at L7.
+}
+`,
+  },
 };
 
 const K8S_PRIV_POD = `# Requires a kubernetes provider configured against the cluster.
@@ -1039,6 +2069,84 @@ resource "kubernetes_manifest" "ctr_priv_pod_binding" {
 }
 `;
 
+const K8S_SA_TOKEN = `# Default ServiceAccount + permissive RBAC. Requires the kubernetes provider.
+resource "kubernetes_manifest" "ctr_sa_token_role" {
+  manifest = {
+    apiVersion = "rbac.authorization.k8s.io/v1"
+    kind       = "ClusterRole"
+    metadata   = { name = "vbuild-secrets-reader" }
+    rules = [{
+      apiGroups = [""]
+      resources = ["secrets"]
+      verbs     = ["get", "list", "watch"]
+    }]
+  }
+}
+
+# K8S-052: default ServiceAccount granted cluster-wide secrets read.
+resource "kubernetes_manifest" "ctr_sa_token_binding" {
+  manifest = {
+    apiVersion = "rbac.authorization.k8s.io/v1"
+    kind       = "ClusterRoleBinding"
+    metadata   = { name = "vbuild-default-secrets-reader" }
+    roleRef = {
+      apiGroup = "rbac.authorization.k8s.io"
+      kind     = "ClusterRole"
+      name     = "vbuild-secrets-reader"
+    }
+    subjects = [{
+      kind      = "ServiceAccount"
+      name      = "default"
+      namespace = "default"
+    }]
+  }
+}
+
+# K8S-050: automountServiceAccountToken left at default (true) — pod inherits a token
+# at /var/run/secrets/kubernetes.io/serviceaccount/token, stealable on compromise.
+resource "kubernetes_manifest" "ctr_sa_token_pod" {
+  manifest = {
+    apiVersion = "v1"
+    kind       = "Pod"
+    metadata = {
+      name      = "vbuild-sa-token-pod"
+      namespace = "default"
+    }
+    spec = {
+      containers = [{
+        name    = "app"
+        image   = "alpine:3.19"
+        command = ["sleep", "infinity"]
+      }]
+    }
+  }
+}
+`;
+
+const K8S_IMAGE_AS_ROOT = `# Pod runs as UID 0 with writable root filesystem. Requires the kubernetes provider.
+resource "kubernetes_manifest" "ctr_image_as_root" {
+  manifest = {
+    apiVersion = "v1"
+    kind       = "Pod"
+    metadata = {
+      name      = "vbuild-root-pod"
+      namespace = "default"
+    }
+    spec = {
+      containers = [{
+        name    = "app"
+        image   = "alpine:3.19"
+        command = ["sleep", "infinity"]
+        securityContext = {
+          # K8S-060: runAsNonRoot not set — container runs as root by default.
+          # K8S-062: readOnlyRootFilesystem not set — attacker can drop persistent binaries.
+        }
+      }]
+    }
+  }
+}
+`;
+
 // --- Shared Terraform blocks (deduplicated across components) ---
 
 const TF_SHARED: Record<string, Partial<Record<Provider, string>>> = {
@@ -1066,20 +2174,55 @@ data "aws_subnets" "default" {
 }
 `,
   },
+  azure_vbuild_vnet: {
+    azure: `resource "azurerm_virtual_network" "vbuild" {
+  name                = "vbuild-vnet"
+  address_space       = ["10.0.0.0/16"]
+  location            = azurerm_resource_group.vbuild.location
+  resource_group_name = azurerm_resource_group.vbuild.name
+}
+
+resource "azurerm_subnet" "vbuild" {
+  name                 = "vbuild-subnet"
+  resource_group_name  = azurerm_resource_group.vbuild.name
+  virtual_network_name = azurerm_virtual_network.vbuild.name
+  address_prefixes     = ["10.0.1.0/24"]
+}
+`,
+  },
 };
 
 const TF_BODY_DEPS: Record<string, Partial<Record<Provider, string[]>>> = {
-  "vm-public-ssh": { aws: ["aws_ami_al2023"] },
+  "vm-public-ssh": { aws: ["aws_ami_al2023"], azure: ["azure_vbuild_vnet"] },
   "vm-imds-v1": { aws: ["aws_ami_al2023"] },
+  "vm-secrets-userdata": { aws: ["aws_ami_al2023"], azure: ["azure_vbuild_vnet"] },
   "ctr-public-cluster": { aws: ["aws_default_vpc"] },
+  "data-cache-open": { aws: ["aws_default_vpc"] },
+  "data-public-snapshot": { aws: ["aws_ami_al2023"] },
+  "net-tls-weak": { aws: ["aws_default_vpc"] },
+  "net-public-origin": { aws: ["aws_default_vpc"] },
+  "net-no-waf": { aws: ["aws_default_vpc"] },
+};
+
+const TF_EXTRA_PROVIDERS: Record<string, Partial<Record<Provider, ExtraProvider[]>>> = {
+  "ctr-priv-pod":      { aws: ["kubernetes"], azure: ["kubernetes"], gcp: ["kubernetes"] },
+  "ctr-sa-token":      { aws: ["kubernetes"], azure: ["kubernetes"], gcp: ["kubernetes"] },
+  "ctr-image-as-root": { aws: ["kubernetes"], azure: ["kubernetes"], gcp: ["kubernetes"] },
+  "fn-public-url":     { aws: ["archive"] },
+  "fn-secrets-env":    { aws: ["archive"] },
+  "fn-loose-policy":   { aws: ["archive"] },
 };
 
 // --- Terraform assembly ---
 
 function tf(provider: Provider, region: string, items: Component[]) {
   const supported = items.filter((c) => c.providers.includes(provider));
-  const needsK8s = supported.some((c) => c.id === "ctr-priv-pod");
-  const header = TF_HEADERS[provider](region, { needsK8s });
+
+  const extras = new Set<ExtraProvider>();
+  for (const c of supported) {
+    for (const e of TF_EXTRA_PROVIDERS[c.id]?.[provider] ?? []) extras.add(e);
+  }
+  const header = TF_HEADERS[provider](region, { extras });
 
   const sharedKeys = new Set<string>();
   for (const c of supported) {
@@ -1311,12 +2454,284 @@ const CFN_BODIES: Record<string, () => string> = {
       Name: vbuild-public-cluster
       RoleArn: !GetAtt CtrPublicClusterRole.Arn
       ResourcesVpcConfig:
-        SubnetIds: !Ref EksSubnetIds
+        SubnetIds: !Ref SubnetIds
         EndpointPublicAccess: true
         EndpointPrivateAccess: false
         PublicAccessCidrs: [0.0.0.0/0]
 `,
+  "vm-unencrypted-disk": () => `  VmUnencryptedDisk:
+    Type: AWS::EC2::Volume
+    Properties:
+      AvailabilityZone: !Sub "\${AWS::Region}a"
+      Size: 8
+      Encrypted: false # VM-301: no CMK; only platform-default at-rest protection.
+      Tags:
+        - Key: Name
+          Value: vbuild-vm-unencrypted-disk
+`,
+  "vm-secrets-userdata": () => `  VmSecretsUserdata:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: !Ref LatestAmazonLinuxAmi
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          export DB_PASSWORD="hunter2-prod"
+          export STRIPE_KEY="sk_live_REDACTED_BUT_NOT_REALLY"
+          aws s3 cp s3://vbuild-config/app.env /etc/app.env
+      Tags:
+        - Key: Name
+          Value: vbuild-vm-secrets-userdata
+`,
+  "data-public-search": () => `  DataPublicSearch:
+    Type: AWS::OpenSearchService::Domain
+    Properties:
+      DomainName: vbuild-public-search
+      EngineVersion: OpenSearch_2.11
+      ClusterConfig:
+        InstanceType: t3.small.search
+        InstanceCount: 1
+      EBSOptions:
+        EBSEnabled: true
+        VolumeSize: 10
+      AccessPolicies:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: "es:*"
+            Resource: !Sub "arn:aws:es:\${AWS::Region}:\${AWS::AccountId}:domain/vbuild-public-search/*"
+`,
+  "data-public-snapshot": () => `  # SNAP-001: CloudFormation cannot mark an AMI/snapshot public natively.
+  # See Terraform (aws_ami_launch_permission with group=all) or apply via:
+  # aws ec2 modify-image-attribute --image-id <id> --launch-permission '{"Add":[{"Group":"all"}]}'
+  DataPublicSnapshotPlaceholder:
+    Type: AWS::CloudFormation::WaitConditionHandle
+`,
+  "data-cache-open": () => `  DataCacheOpenSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: vbuild-data-cache-open — Redis open to world
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          CidrIp: 0.0.0.0/0
+  DataCacheOpen:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      CacheNodeType: cache.t3.micro
+      Engine: redis
+      NumCacheNodes: 1
+      VpcSecurityGroupIds: [!GetAtt DataCacheOpenSg.GroupId]
+      # No AuthToken, no TransitEncryptionEnabled.
+`,
+  "id-oidc-trust": () => `  IdOidcTrustProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+      ThumbprintList: [6938fd4d98bab03faadb97b34396831e3780aea1]
+  IdOidcTrust:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: vbuild-id-oidc-trust
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref IdOidcTrustProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                "token.actions.githubusercontent.com:aud": sts.amazonaws.com
+                # IAM-040: no sub claim restriction — any GitHub workflow can assume.
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+`,
+  "id-root-account": () => `  # Root account cannot be managed via CloudFormation. These rules detect the misconfig.
+  RootMfaEnabledRule:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      ConfigRuleName: vbuild-root-mfa-enabled
+      Source:
+        Owner: AWS
+        SourceIdentifier: ROOT_ACCOUNT_MFA_ENABLED
+  RootNoAccessKeysRule:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      ConfigRuleName: vbuild-root-no-access-keys
+      Source:
+        Owner: AWS
+        SourceIdentifier: IAM_ROOT_ACCESS_KEY_CHECK
+  RootSigninAlarm:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: vbuild-root-signin-alarm
+      EventPattern:
+        detail-type: ["AWS Console Sign In via CloudTrail"]
+        detail:
+          userIdentity:
+            type: [Root]
+`,
+  "id-no-password-policy": () => `  # AWS::IAM::AccountPasswordPolicy is not a native CloudFormation resource.
+  # Apply with a Lambda-backed custom resource, or via CLI:
+  #   aws iam update-account-password-policy --minimum-password-length 4
+  IdNoPasswordPolicyPlaceholder:
+    Type: AWS::CloudFormation::WaitConditionHandle
+`,
+  "ctr-sa-token": () => `  # K8S RBAC / pod manifests are not CloudFormation primitives.
+  # See the Terraform output (uses the kubernetes provider) or apply via kubectl.
+  CtrSaTokenPlaceholder:
+    Type: AWS::CloudFormation::WaitConditionHandle
+`,
+  "ctr-image-as-root": () => `  # K8S pod manifests are not CloudFormation primitives.
+  # See the Terraform output (uses the kubernetes provider) or apply via kubectl.
+  CtrImageAsRootPlaceholder:
+    Type: AWS::CloudFormation::WaitConditionHandle
+`,
+  "net-tls-weak": () => `  NetTlsWeak:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: vbuild-net-tls-weak
+      Subnets: !Ref SubnetIds
+      Scheme: internet-facing
+      Type: application
+  # NET-101: to demonstrate weak TLS, attach a Listener with
+  # SslPolicy: ELBSecurityPolicy-TLS-1-0-2015-04 and a real ACM certificate ARN.
+`,
+  "net-dangling-dns": () => `  NetDanglingDnsZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: vbuild-example.com
+  # NET-201: CNAME points at a deleted S3 bucket — attacker can re-register the bucket name.
+  NetDanglingDns:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref NetDanglingDnsZone
+      Name: promo.vbuild-example.com
+      Type: CNAME
+      TTL: "300"
+      ResourceRecords:
+        - vbuild-deleted-bucket.s3.amazonaws.com
+`,
+  "net-public-origin": () => `  NetPublicOriginSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB open to internet, bypasses any CDN/WAF
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+  NetPublicOrigin:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: vbuild-net-public-origin
+      Subnets: !Ref SubnetIds
+      SecurityGroups: [!GetAtt NetPublicOriginSg.GroupId]
+      Scheme: internet-facing
+      Type: application
+`,
+  "net-no-waf": () => `  NetNoWaf:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: vbuild-net-no-waf
+      Subnets: !Ref SubnetIds
+      Scheme: internet-facing
+      Type: application
+  # NET-401: no AWS::WAFv2::WebACLAssociation in this stack — ALB unprotected at L7.
+`,
+  "fn-public-url": () => `  FnPublicUrlRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: vbuild-fn-public-url
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+  FnPublicUrl:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: vbuild-fn-public-url
+      Role: !GetAtt FnPublicUrlRole.Arn
+      Runtime: python3.12
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          def handler(event, context):
+              return {'statusCode': 200, 'body': 'vbuild'}
+  FnPublicUrlUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref FnPublicUrl
+      AuthType: NONE # FN-001
+`,
+  "fn-secrets-env": () => `  FnSecretsEnvRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: vbuild-fn-secrets-env
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+  FnSecretsEnv:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: vbuild-fn-secrets-env
+      Role: !GetAtt FnSecretsEnvRole.Arn
+      Runtime: python3.12
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          def handler(event, context):
+              return {'statusCode': 200}
+      Environment:
+        Variables:
+          DB_PASSWORD: hunter2-prod
+          STRIPE_API_KEY: sk_live_REDACTED_BUT_NOT_REALLY
+          GITHUB_PAT: ghp_redacted_but_not_really
+`,
+  "fn-loose-policy": () => `  FnLoosePolicyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: vbuild-fn-loose-policy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+  FnLoosePolicy:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: vbuild-fn-loose-policy
+      Role: !GetAtt FnLoosePolicyRole.Arn
+      Runtime: python3.12
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          def handler(event, context):
+              return {'statusCode': 200}
+  FnLoosePolicyPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref FnLoosePolicy
+      Action: lambda:InvokeFunction
+      Principal: "*" # FN-014: wildcard principal.
+`,
 };
+
+const CFN_NEEDS_AMI = new Set(["vm-public-ssh", "vm-imds-v1", "vm-secrets-userdata"]);
+const CFN_NEEDS_SUBNETS = new Set(["ctr-public-cluster", "net-tls-weak", "net-public-origin", "net-no-waf"]);
 
 // --- CloudFormation assembly ---
 
@@ -1337,8 +2752,8 @@ function cfn(region: string, items: Component[]) {
     .map((c) => `# skipped: "${c.name}" — CloudFormation is AWS-only.`)
     .join("\n");
 
-  const needsAmi = aws.some((c) => c.id === "vm-public-ssh" || c.id === "vm-imds-v1");
-  const needsSubnets = aws.some((c) => c.id === "ctr-public-cluster");
+  const needsAmi = aws.some((c) => CFN_NEEDS_AMI.has(c.id));
+  const needsSubnets = aws.some((c) => CFN_NEEDS_SUBNETS.has(c.id));
 
   const params: string[] = [];
   if (needsAmi) {
@@ -1347,9 +2762,9 @@ function cfn(region: string, items: Component[]) {
     Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64`);
   }
   if (needsSubnets) {
-    params.push(`  EksSubnetIds:
+    params.push(`  SubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: At least two subnets across AZs for the EKS control plane.`);
+    Description: At least two subnets across AZs (used by EKS / ALB resources).`);
   }
   const parametersBlock = params.length ? `\nParameters:\n${params.join("\n\n")}\n` : "";
 
@@ -1435,7 +2850,7 @@ function BuildPage() {
         {/* LEFT: catalog */}
         <aside className="col-span-12 lg:col-span-5 xl:col-span-4 space-y-4">
           <div className="rounded-xl border border-border bg-card/60 overflow-hidden">
-            <div className="grid grid-cols-4 border-b border-border">
+            <div className="grid grid-cols-3 sm:grid-cols-6 border-b border-border">
               {CATALOG.map((cat) => {
                 const Icon = cat.icon;
                 const active = activeCat === cat.id;

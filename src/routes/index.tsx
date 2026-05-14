@@ -48,9 +48,9 @@ function Nav() {
         </nav>
         <div className="flex items-center gap-3">
           <button className="hidden sm:inline-flex text-sm font-mono text-muted-foreground hover:text-foreground">sign in</button>
-          <button className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition">
+          <Link to="/build" className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition">
             launch console <ChevronRight className="h-3.5 w-3.5" />
-          </button>
+          </Link>
         </div>
       </div>
     </header>

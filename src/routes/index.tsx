@@ -247,14 +247,14 @@ function ScenarioCard({ icon: Icon, name, id, severity, provider, desc }: any) {
 
 function DeploySection() {
   const steps = [
-    { n: "01", title: "Connect cloud accounts", desc: "OIDC federation with read-only role for inventory + scoped role for deploy.", icon: Cloud },
-    { n: "02", title: "Compose environment", desc: "Pick scenarios, chain attack paths, set lifetime and blast radius.", icon: Layers },
-    { n: "03", title: "Deploy & monitor", desc: "Live console, network map, and an auto-teardown timer that you control.", icon: Activity },
+    { n: "01", title: "Compose environment", desc: "Pick scenarios across VM, Data, Identity and Container. Review the vulnerabilities each one introduces.", icon: Layers },
+    { n: "02", title: "Generate IaC", desc: "Choose Terraform (AWS / Azure / GCP) or CloudFormation (AWS), pick a region, and the template is ready.", icon: FileCode },
+    { n: "03", title: "Download & apply", desc: "Download the .tf or .yaml and run it in your own isolated sub-account or project.", icon: Download },
   ];
   return (
     <section id="deploy" className="relative py-24 border-t border-border/60">
       <div className="mx-auto max-w-7xl px-6">
-        <SectionHeader eyebrow="03 — workflow" title="From zero to vulnerable in 90 seconds." />
+        <SectionHeader eyebrow="03 — workflow" title="From scenario to template in seconds." subtitle="Today: download IaC and apply it yourself. Soon: one-click deploy from the console." />
         <div className="mt-12 grid md:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border">
           {steps.map((s) => (
             <div key={s.n} className="bg-card p-8 relative">
@@ -268,11 +268,20 @@ function DeploySection() {
           ))}
         </div>
 
-        <div className="mt-6 rounded-xl border border-warning/30 bg-warning/5 p-5 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <span className="font-semibold text-warning">isolation guarantee.</span>{" "}
-            <span className="text-muted-foreground">Every environment runs in a dedicated sub-account/project, tagged, time-boxed, and torn down on expiry. Never deploy on top of production.</span>
+        <div className="mt-6 grid md:grid-cols-2 gap-3">
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 flex items-start gap-3">
+            <Clock className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <span className="font-semibold text-primary">coming soon — managed deploy.</span>{" "}
+              <span className="text-muted-foreground">Connect a cloud account via OIDC and we will provision, monitor, and tear down environments for you. Currently in private alpha.</span>
+            </div>
+          </div>
+          <div className="rounded-xl border border-warning/30 bg-warning/5 p-5 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <span className="font-semibold text-warning">apply with care.</span>{" "}
+              <span className="text-muted-foreground">These templates are intentionally vulnerable. Use a dedicated sub-account / project, tag everything, and never apply on top of production.</span>
+            </div>
           </div>
         </div>
       </div>

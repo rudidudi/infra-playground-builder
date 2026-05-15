@@ -64,7 +64,7 @@ function Hero() {
           <div className="lg:col-span-7">
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-1 text-xs font-mono text-muted-foreground mb-6">
               <span className="h-1.5 w-1.5 rounded-full bg-primary blink" />
-              v0.5.1 — attack paths (preview) · stable: v0.5.0
+              v0.5.0 — catalog stable · 6 categories · 28 components · 60 vulns
             </div>
             <h1 className="font-display text-5xl md:text-7xl font-bold tracking-tight leading-[1.02]">
               Generate <span className="text-primary text-glow">vulnerable</span><br />

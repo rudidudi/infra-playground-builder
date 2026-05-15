@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as BuildRouteImport } from './routes/build'
+import { Route as AttackPathsRouteImport } from './routes/attack-paths'
 import { Route as IndexRouteImport } from './routes/index'
 
 const BuildRoute = BuildRouteImport.update({
   id: '/build',
   path: '/build',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AttackPathsRoute = AttackPathsRouteImport.update({
+  id: '/attack-paths',
+  path: '/attack-paths',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -25,27 +31,31 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/attack-paths': typeof AttackPathsRoute
   '/build': typeof BuildRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/attack-paths': typeof AttackPathsRoute
   '/build': typeof BuildRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/attack-paths': typeof AttackPathsRoute
   '/build': typeof BuildRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/build'
+  fullPaths: '/' | '/attack-paths' | '/build'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/build'
-  id: '__root__' | '/' | '/build'
+  to: '/' | '/attack-paths' | '/build'
+  id: '__root__' | '/' | '/attack-paths' | '/build'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AttackPathsRoute: typeof AttackPathsRoute
   BuildRoute: typeof BuildRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/build'
       fullPath: '/build'
       preLoaderRoute: typeof BuildRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/attack-paths': {
+      id: '/attack-paths'
+      path: '/attack-paths'
+      fullPath: '/attack-paths'
+      preLoaderRoute: typeof AttackPathsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AttackPathsRoute: AttackPathsRoute,
   BuildRoute: BuildRoute,
 }
 export const routeTree = rootRouteImport

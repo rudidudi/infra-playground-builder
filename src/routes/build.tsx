@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import {
   Shield, Server, Database, KeyRound, Box, ChevronLeft, Copy, Download,
   AlertTriangle, Check, Plus, Minus, FileCode, Globe, Zap, Network, Layers,
+  Target, BookOpen,
 } from "lucide-react";
 
 const REGIONS: Record<Provider, { id: string; label: string }[]> = {
@@ -39,6 +40,9 @@ const REGIONS: Record<Provider, { id: string; label: string }[]> = {
 };
 
 export const Route = createFileRoute("/build")({
+  validateSearch: (search: Record<string, unknown>): { path?: string } => ({
+    path: typeof search.path === "string" ? search.path : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Build — Vulnerabuild" },
@@ -50,8 +54,8 @@ export const Route = createFileRoute("/build")({
 
 // ---------------- catalog ----------------
 
-type Provider = "aws" | "azure" | "gcp";
-type Format = "terraform" | "cloudformation";
+export type Provider = "aws" | "azure" | "gcp";
+export type Format = "terraform" | "cloudformation";
 
 type Component = {
   id: string;
@@ -336,6 +340,99 @@ const CATALOG: Category[] = [
   },
 ];
 
+// ---------------- attack paths ----------------
+
+export type AttackPath = {
+  id: string;
+  name: string;
+  difficulty: "easy" | "medium" | "hard";
+  cloud: Provider | "multi";
+  components: string[];
+  startingPosition: string;
+  objective: string;
+  steps: { actor: string; action: string; exploits: string[] }[];
+  estTime: string;
+};
+
+export const ATTACK_PATHS: AttackPath[] = [
+  {
+    id: "anonymous-bucket",
+    name: "Hello, anonymous bucket",
+    difficulty: "easy",
+    cloud: "aws",
+    components: ["data-public-bucket"],
+    startingPosition: "Anonymous internet user, no AWS credentials.",
+    objective: "List and download every object in the public S3 bucket.",
+    estTime: "10 min",
+    steps: [
+      { actor: "Attacker", action: "Discovers the bucket name via Google dorking, GitHub leaks, or a brute-force wordlist.", exploits: [] },
+      { actor: "Attacker", action: "Lists contents anonymously: `aws s3 ls s3://<bucket> --no-sign-request` — public ACL allows unauthenticated reads.", exploits: ["S3-001", "S3-004"] },
+      { actor: "Attacker", action: "Exfiltrates everything: `aws s3 sync s3://<bucket> ./loot --no-sign-request`.", exploits: ["S3-001"] },
+    ],
+  },
+  {
+    id: "ssrf-to-s3",
+    name: "SSRF → IMDS → S3 (Capital One pattern)",
+    difficulty: "hard",
+    cloud: "aws",
+    components: ["vm-imds-v1", "data-public-bucket"],
+    startingPosition: "SSRF discovered in a public web app running on an EC2 instance.",
+    objective: "Exfiltrate an internal S3 bucket using credentials lifted from the instance's IAM role.",
+    estTime: "30 min",
+    steps: [
+      { actor: "Attacker", action: "Identifies an SSRF primitive in the app (e.g. a URL-fetch parameter that follows redirects).", exploits: [] },
+      { actor: "Attacker", action: "Pivots SSRF to `http://169.254.169.254/latest/meta-data/iam/security-credentials/<role>` — IMDSv1 returns STS credentials in plaintext, no token required.", exploits: ["EC2-022"] },
+      { actor: "Attacker", action: "Exports the credentials and runs `aws s3 ls` against discovered buckets. The role's wildcard `s3:*` grants account-wide access.", exploits: ["IAM-031", "S3-001", "S3-004"] },
+    ],
+  },
+  {
+    id: "github-oidc-takeover",
+    name: "GitHub Actions OIDC role takeover",
+    difficulty: "medium",
+    cloud: "aws",
+    components: ["id-oidc-trust"],
+    startingPosition: "Any GitHub user; you can create a workflow in a repo you control.",
+    objective: "Assume the target AWS role from an arbitrary workflow you own.",
+    estTime: "20 min",
+    steps: [
+      { actor: "Attacker", action: "Discovers the target's role ARN — often committed to a public `.github/workflows/*.yml` or leaked in build logs.", exploits: [] },
+      { actor: "Attacker", action: "Creates a workflow in their own repo that calls `aws-actions/configure-aws-credentials` with the target role-arn. The role's trust policy has no `sub` condition.", exploits: ["IAM-040"] },
+      { actor: "Attacker", action: "Workflow assumes the role and runs `aws sts get-caller-identity` → AdministratorAccess. Pivots to any resource.", exploits: ["IAM-040", "IAM-041"] },
+    ],
+  },
+  {
+    id: "subdomain-takeover",
+    name: "Subdomain takeover for credential phishing",
+    difficulty: "easy",
+    cloud: "multi",
+    components: ["net-dangling-dns"],
+    startingPosition: "Anonymous internet user, target's public DNS records visible.",
+    objective: "Serve attacker-controlled HTML from a subdomain of the target's primary domain.",
+    estTime: "15 min",
+    steps: [
+      { actor: "Attacker", action: "Enumerates subdomains with `subfinder` / Amass. `promo.<target>.com` resolves to a CNAME pointing at `<target>-deleted-bucket.s3.amazonaws.com`.", exploits: [] },
+      { actor: "Attacker", action: "Tries to GET the bucket — receives `NoSuchBucket`. Registers a new S3 bucket with the exact name in their own account.", exploits: ["NET-201"] },
+      { actor: "Attacker", action: "Uploads `index.html` containing a credential-phishing form. Victims now load attacker content from a domain they trust.", exploits: ["NET-201"] },
+    ],
+  },
+  {
+    id: "container-supply-chain",
+    name: "Container supply chain → host root",
+    difficulty: "hard",
+    cloud: "multi",
+    components: ["ctr-public-registry", "ctr-priv-pod"],
+    startingPosition: "Anonymous internet user.",
+    objective: "Obtain root on a Kubernetes node by poisoning the container image the cluster pulls.",
+    estTime: "60 min",
+    steps: [
+      { actor: "Attacker", action: "Discovers the public registry — Shodan, organisation's GitHub Actions logs, or a leaked Dockerfile.", exploits: ["REG-001"] },
+      { actor: "Attacker", action: "Anonymously pushes a backdoored image at the same tag the cluster pulls. Scan-on-push is disabled, so no alarm fires.", exploits: ["REG-001", "REG-004"] },
+      { actor: "Attacker", action: "Waits for the next deployment (or triggers a rollout). The pod runs with `privileged: true` and `hostPath: /` mounted read-write.", exploits: ["K8S-101", "K8S-108"] },
+      { actor: "Attacker", action: "Backdoor sees `/host`, runs `chroot /host /bin/bash`, drops a persistent SSH key — root on the node.", exploits: ["K8S-108"] },
+    ],
+  },
+];
+
 // Standards references per vulnerability ID — CWE (weakness type), CVSS v3.1 base score,
 // CIS Benchmark control, and a representative CVE where the misconfig has a direct, well-known
 // software-CVE mapping (TLS protocol attacks, container-escape primitives, EOL OS examples).
@@ -426,6 +523,31 @@ function generateIaC(format: Format, provider: Provider, region: string, selecte
   }
   if (format === "terraform") return tf(provider, region, selected);
   return cfn(region, selected);
+}
+
+function renderPlaybookBanner(path: AttackPath, format: Format): string {
+  const c = format === "terraform" ? "#" : "#";
+  const lines: string[] = [];
+  const rule = `${c} ================================================================`;
+  lines.push(rule);
+  lines.push(`${c} Attack path: ${path.name}`);
+  lines.push(`${c} Difficulty: ${path.difficulty}  ·  Cloud: ${path.cloud}  ·  Est. time: ${path.estTime}`);
+  lines.push(c);
+  lines.push(`${c} Starting position: ${path.startingPosition}`);
+  lines.push(`${c} Objective:         ${path.objective}`);
+  lines.push(c);
+  lines.push(`${c} Playbook:`);
+  path.steps.forEach((s, i) => {
+    lines.push(`${c}   ${i + 1}. ${s.action}`);
+    if (s.exploits.length) {
+      lines.push(`${c}      exploits: ${s.exploits.join(", ")}`);
+    }
+  });
+  lines.push(c);
+  lines.push(`${c} Cleanup: terraform destroy -auto-approve   (or: aws cloudformation delete-stack)`);
+  lines.push(rule);
+  lines.push("");
+  return lines.join("\n") + "\n";
 }
 
 // --- Terraform per-provider headers ---
@@ -2833,12 +2955,23 @@ const pascal = (s: string) => s.replace(/(^|[-_])(\w)/g, (_, __, c) => c.toUpper
 
 // ---------------- page ----------------
 
+function categoryForComponent(id: string): string | undefined {
+  return CATALOG.find((cat) => cat.components.some((c) => c.id === id))?.id;
+}
+
 function BuildPage() {
-  const [selectedIds, setSelectedIds] = useState<string[]>(["vm-public-ssh", "data-public-bucket"]);
-  const [activeCat, setActiveCat] = useState<string>("vm");
+  const { path: pathId } = Route.useSearch();
+  const attackPath = useMemo(() => ATTACK_PATHS.find((p) => p.id === pathId), [pathId]);
+
+  const initialIds = attackPath ? attackPath.components : ["vm-public-ssh", "data-public-bucket"];
+  const initialProvider: Provider = attackPath && attackPath.cloud !== "multi" ? attackPath.cloud : "aws";
+  const initialCat = categoryForComponent(initialIds[0] ?? "vm-public-ssh") ?? "vm";
+
+  const [selectedIds, setSelectedIds] = useState<string[]>(initialIds);
+  const [activeCat, setActiveCat] = useState<string>(initialCat);
   const [format, setFormat] = useState<Format>("terraform");
-  const [provider, setProvider] = useState<Provider>("aws");
-  const [region, setRegion] = useState<string>(REGIONS.aws[0].id);
+  const [provider, setProvider] = useState<Provider>(initialProvider);
+  const [region, setRegion] = useState<string>(REGIONS[initialProvider][0].id);
   const [copied, setCopied] = useState(false);
 
   const changeProvider = (p: Provider) => {
@@ -2851,7 +2984,11 @@ function BuildPage() {
     [selectedIds]
   );
 
-  const code = useMemo(() => generateIaC(format, provider, region, selected), [format, provider, region, selected]);
+  const code = useMemo(() => {
+    const base = generateIaC(format, provider, region, selected);
+    if (!attackPath) return base;
+    return renderPlaybookBanner(attackPath, format) + base;
+  }, [format, provider, region, selected, attackPath]);
 
   const toggle = (id: string) =>
     setSelectedIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
@@ -2902,9 +3039,15 @@ function BuildPage() {
               <span className="font-mono text-sm font-semibold">vulnerabuild<span className="text-primary">_</span> / build</span>
             </div>
           </div>
-          <div className="font-mono text-xs text-muted-foreground">
-            <span className="text-foreground font-semibold">{selected.length}</span> components ·{" "}
-            <span className="text-foreground font-semibold">{allVulns.length}</span> vulnerabilities
+          <div className="flex items-center gap-4">
+            <Link to="/attack-paths" className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground">
+              <BookOpen className="h-3.5 w-3.5" /> attack paths
+            </Link>
+            <span className="h-4 w-px bg-border" />
+            <div className="font-mono text-xs text-muted-foreground">
+              <span className="text-foreground font-semibold">{selected.length}</span> components ·{" "}
+              <span className="text-foreground font-semibold">{allVulns.length}</span> vulnerabilities
+            </div>
           </div>
         </div>
       </header>
@@ -2912,6 +3055,7 @@ function BuildPage() {
       <main className="relative mx-auto max-w-[1600px] px-6 py-6 grid grid-cols-12 gap-6">
         {/* LEFT: catalog */}
         <aside className="col-span-12 lg:col-span-5 xl:col-span-4 space-y-4">
+          {attackPath && <PlaybookCard path={attackPath} />}
           <div className="rounded-xl border border-border bg-card/60 overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-background/40">
               <Layers className="h-4 w-4 text-primary flex-shrink-0" />
@@ -3111,6 +3255,59 @@ function BuildPage() {
           </div>
         </section>
       </main>
+    </div>
+  );
+}
+
+function PlaybookCard({ path }: { path: AttackPath }) {
+  const diffClass = {
+    easy: "text-success border-success/40 bg-success/10",
+    medium: "text-warning border-warning/40 bg-warning/10",
+    hard: "text-destructive border-destructive/40 bg-destructive/10",
+  }[path.difficulty];
+  return (
+    <div className="rounded-xl border border-primary/40 bg-card/60 overflow-hidden">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-background/40">
+        <div className="flex items-center gap-2 min-w-0">
+          <Target className="h-4 w-4 text-primary flex-shrink-0" />
+          <span className="font-mono text-sm truncate">attack-path</span>
+        </div>
+        <span className={`font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border ${diffClass}`}>{path.difficulty}</span>
+      </div>
+      <div className="p-4 space-y-3">
+        <div>
+          <div className="font-display font-semibold text-sm">{path.name}</div>
+          <div className="mt-1 flex flex-wrap gap-1 font-mono text-[10px] text-muted-foreground">
+            <span className="px-1.5 py-0.5 rounded border border-border bg-background/40">cloud: {path.cloud}</span>
+            <span className="px-1.5 py-0.5 rounded border border-border bg-background/40">est. {path.estTime}</span>
+            <span className="px-1.5 py-0.5 rounded border border-border bg-background/40">{path.components.length} components</span>
+          </div>
+        </div>
+        <div className="space-y-1.5 text-xs leading-relaxed">
+          <div><span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">start.</span> <span className="text-foreground/90">{path.startingPosition}</span></div>
+          <div><span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">goal.</span> <span className="text-foreground/90">{path.objective}</span></div>
+        </div>
+        <ol className="space-y-2 pt-2 border-t border-border/60">
+          {path.steps.map((s, i) => (
+            <li key={i} className="text-xs leading-relaxed">
+              <span className="font-mono text-[10px] text-primary mr-1.5">{String(i + 1).padStart(2, "0")}</span>
+              <span className="text-foreground/90">{s.action}</span>
+              {s.exploits.length > 0 && (
+                <div className="mt-1 ml-6 flex flex-wrap gap-1 font-mono text-[10px]">
+                  {s.exploits.map((e) => (
+                    <span key={e} className="px-1.5 py-0.5 rounded border border-destructive/40 bg-destructive/10 text-destructive">{e}</span>
+                  ))}
+                </div>
+              )}
+            </li>
+          ))}
+        </ol>
+        <div className="pt-2 border-t border-border/60">
+          <Link to="/attack-paths" className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground hover:text-foreground">
+            <ChevronLeft className="h-3 w-3" /> all attack paths
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

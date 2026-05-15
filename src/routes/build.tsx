@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Shield, Server, Database, KeyRound, Box, ChevronLeft, Copy, Download,
-  AlertTriangle, Check, Plus, Minus, FileCode, Globe, Zap, Network,
+  AlertTriangle, Check, Plus, Minus, FileCode, Globe, Zap, Network, Layers,
 } from "lucide-react";
 
 const REGIONS: Record<Provider, { id: string; label: string }[]> = {
@@ -89,14 +89,6 @@ const CATALOG: Category[] = [
         vulns: [
           { id: "EC2-022", title: "IMDSv1 enabled", severity: "critical", desc: "Legacy metadata service exposes role credentials to SSRF — Capital One 2019 pattern." },
           { id: "IAM-031", title: "Over-permissive instance role", severity: "high", desc: "Attached role has wildcard s3:* and iam:PassRole." },
-        ],
-      },
-      {
-        id: "vm-outdated-ami", name: "Outdated image", short: "Unpatched OS with known CVEs",
-        providers: ["aws", "azure", "gcp"],
-        vulns: [
-          { id: "VM-201", title: "Stale base image", severity: "high", desc: "Boots an EOL OS image with multiple unpatched CVEs." },
-          { id: "VM-203", title: "Auto-update disabled", severity: "medium", desc: "Unattended upgrades / WSUS disabled at provisioning." },
         ],
       },
       {
@@ -196,10 +188,10 @@ const CATALOG: Category[] = [
         ],
       },
       {
-        id: "id-over-sa", name: "Over-privileged service account", short: "Project owner SA on a VM",
-        providers: ["gcp", "azure"],
+        id: "id-over-sa", name: "Over-privileged service account", short: "Admin role bound to a VM / instance profile",
+        providers: ["aws", "gcp", "azure"],
         vulns: [
-          { id: "IAM-014", title: "Owner role on SA", severity: "critical", desc: "Service account has project-wide owner role and is bound to a Compute VM." },
+          { id: "IAM-014", title: "Owner role on service identity", severity: "critical", desc: "Service account / managed identity / instance profile has full admin permissions and is bound to a compute instance." },
         ],
       },
       {
@@ -357,8 +349,6 @@ const VULN_REFS: Record<string, VulnRefs> = {
   "LOG-002": { cwe: "CWE-778", cvss: "5.3", cis: "CIS AWS 3.9" },
   "EC2-022": { cwe: "CWE-918", cvss: "9.1", cis: "CIS AWS 5.6" },
   "IAM-031": { cwe: "CWE-269", cvss: "8.1", cis: "CIS AWS 1.16" },
-  "VM-201":  { cwe: "CWE-1104", cvss: "7.5", cve: "CVE-2021-4034" },
-  "VM-203":  { cwe: "CWE-1104", cvss: "5.3", cve: "CVE-2024-3094" },
   "VM-301":  { cwe: "CWE-311", cvss: "7.5", cis: "CIS AWS 2.2.1" },
   "VM-303":  { cwe: "CWE-311", cvss: "5.3", cis: "CIS AWS 2.2.1" },
   "SEC-201": { cwe: "CWE-798", cvss: "9.1" },
@@ -696,79 +686,6 @@ resource "aws_instance" "vm_imds_v1" {
 `,
   },
 
-  "vm-outdated-ami": {
-    aws: () => `# Hard-coded outdated Amazon Linux 1 AMI (EOL 2023-12).
-# Replace with a real AMI ID for your region; the placeholder will fail apply outside us-east-1.
-resource "aws_instance" "vm_outdated_ami" {
-  ami                         = "ami-0c2b8ca1dad447f8a"
-  instance_type               = "t3.micro"
-  associate_public_ip_address = true
-  tags = { Name = "vbuild-vm-outdated-ami" }
-}
-`,
-    azure: () => `resource "azurerm_virtual_network" "vbuild_outdated" {
-  name                = "vbuild-vnet-outdated"
-  address_space       = ["10.1.0.0/16"]
-  location            = azurerm_resource_group.vbuild.location
-  resource_group_name = azurerm_resource_group.vbuild.name
-}
-
-resource "azurerm_subnet" "vbuild_outdated" {
-  name                 = "vbuild-subnet-outdated"
-  resource_group_name  = azurerm_resource_group.vbuild.name
-  virtual_network_name = azurerm_virtual_network.vbuild_outdated.name
-  address_prefixes     = ["10.1.1.0/24"]
-}
-
-resource "azurerm_network_interface" "vm_outdated_ami" {
-  name                = "vbuild-vm-outdated-ami-nic"
-  location            = azurerm_resource_group.vbuild.location
-  resource_group_name = azurerm_resource_group.vbuild.name
-  ip_configuration {
-    name                          = "internal"
-    subnet_id                     = azurerm_subnet.vbuild_outdated.id
-    private_ip_address_allocation = "Dynamic"
-  }
-}
-
-resource "azurerm_linux_virtual_machine" "vm_outdated_ami" {
-  name                            = "vbuild-vm-outdated-ami"
-  location                        = azurerm_resource_group.vbuild.location
-  resource_group_name             = azurerm_resource_group.vbuild.name
-  size                            = "Standard_B1s"
-  admin_username                  = "vbuild"
-  admin_password                  = "P@ssw0rd-vbuild!"
-  disable_password_authentication = false
-  network_interface_ids           = [azurerm_network_interface.vm_outdated_ami.id]
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-  }
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "18.04-LTS" # End of standard support April 2023
-    version   = "latest"
-  }
-}
-`,
-    gcp: (region) => `resource "google_compute_instance" "vm_outdated_ami" {
-  name         = "vbuild-vm-outdated-ami"
-  machine_type = "e2-micro"
-  zone         = "${region}-a"
-  boot_disk {
-    initialize_params {
-      image = "debian-cloud/debian-10" # Deprecated June 2024
-    }
-  }
-  network_interface {
-    network = "default"
-    access_config {}
-  }
-}
-`,
-  },
-
   "data-public-bucket": {
     aws: () => `resource "aws_s3_bucket" "data_public_bucket" {
   bucket        = "vbuild-public-\${random_id.suffix.hex}"
@@ -1037,6 +954,35 @@ resource "aws_iam_access_key" "id_priv_esc" {
   },
 
   "id-over-sa": {
+    aws: () => `resource "aws_iam_role" "id_over_sa" {
+  name = "vbuild-id-over-sa"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "id_over_sa_admin" {
+  role       = aws_iam_role.id_over_sa.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+
+resource "aws_iam_instance_profile" "id_over_sa" {
+  name = "vbuild-id-over-sa"
+  role = aws_iam_role.id_over_sa.name
+}
+
+resource "aws_instance" "id_over_sa" {
+  ami                  = data.aws_ami.al2023.id
+  instance_type        = "t3.micro"
+  iam_instance_profile = aws_iam_instance_profile.id_over_sa.name
+  tags = { Name = "vbuild-id-over-sa" }
+}
+`,
     gcp: (region) => `resource "google_service_account" "id_over_sa" {
   account_id   = "vbuild-over-sa"
   display_name = "vbuild over-privileged SA"
@@ -2278,6 +2224,7 @@ const TF_BODY_DEPS: Record<string, Partial<Record<Provider, string[]>>> = {
   "vm-public-ssh": { aws: ["aws_ami_al2023"], azure: ["azure_vbuild_vnet"] },
   "vm-imds-v1": { aws: ["aws_ami_al2023"] },
   "vm-secrets-userdata": { aws: ["aws_ami_al2023"], azure: ["azure_vbuild_vnet"] },
+  "id-over-sa": { aws: ["aws_ami_al2023"] },
   "ctr-public-cluster": { aws: ["aws_default_vpc"] },
   "data-cache-open": { aws: ["aws_default_vpc"] },
   "data-public-snapshot": { aws: ["aws_ami_al2023"] },
@@ -2391,13 +2338,6 @@ const CFN_BODIES: Record<string, () => string> = {
         HttpTokens: optional # IMDSv1 allowed — SSRF-prone
         HttpPutResponseHopLimit: 2
 `,
-  "vm-outdated-ami": () => `  # Hard-coded outdated Amazon Linux 1 AMI (EOL 2023-12). Replace per region.
-  VmOutdatedAmi:
-    Type: AWS::EC2::Instance
-    Properties:
-      InstanceType: t3.micro
-      ImageId: ami-0c2b8ca1dad447f8a
-`,
   "data-public-bucket": () => `  DataPublicBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -2495,6 +2435,32 @@ const CFN_BODIES: Record<string, () => string> = {
                   - lambda:InvokeFunction
                   - lambda:UpdateFunctionCode
                 Resource: "*"
+`,
+  "id-over-sa": () => `  IdOverSaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: vbuild-id-over-sa
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+  IdOverSaProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref IdOverSaRole]
+  IdOverSa:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: !Ref LatestAmazonLinuxAmi
+      IamInstanceProfile: !Ref IdOverSaProfile
+      Tags:
+        - Key: Name
+          Value: vbuild-id-over-sa
 `,
   "ctr-public-registry": () => `  CtrPublicRegistry:
     Type: AWS::ECR::Repository
@@ -2812,7 +2778,7 @@ const CFN_BODIES: Record<string, () => string> = {
 `,
 };
 
-const CFN_NEEDS_AMI = new Set(["vm-public-ssh", "vm-imds-v1", "vm-secrets-userdata"]);
+const CFN_NEEDS_AMI = new Set(["vm-public-ssh", "vm-imds-v1", "vm-secrets-userdata", "id-over-sa"]);
 const CFN_NEEDS_SUBNETS = new Set(["ctr-public-cluster", "net-tls-weak", "net-public-origin", "net-no-waf"]);
 
 // --- CloudFormation assembly ---
@@ -2942,6 +2908,10 @@ function BuildPage() {
         {/* LEFT: catalog */}
         <aside className="col-span-12 lg:col-span-5 xl:col-span-4 space-y-4">
           <div className="rounded-xl border border-border bg-card/60 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-background/40">
+              <Layers className="h-4 w-4 text-primary flex-shrink-0" />
+              <span className="font-mono text-sm">vulnerability-catalog</span>
+            </div>
             <div className="grid grid-cols-3 sm:grid-cols-6 border-b border-border">
               {CATALOG.map((cat) => {
                 const Icon = cat.icon;

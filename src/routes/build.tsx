@@ -2630,6 +2630,11 @@ const CFN_BODIES: Record<string, () => string> = {
   IdNoPasswordPolicyPlaceholder:
     Type: AWS::CloudFormation::WaitConditionHandle
 `,
+  "ctr-priv-pod": () => `  # K8S pod / RBAC manifests are not CloudFormation primitives.
+  # See the Terraform output (uses the kubernetes provider) or apply via kubectl.
+  CtrPrivPodPlaceholder:
+    Type: AWS::CloudFormation::WaitConditionHandle
+`,
   "ctr-sa-token": () => `  # K8S RBAC / pod manifests are not CloudFormation primitives.
   # See the Terraform output (uses the kubernetes provider) or apply via kubectl.
   CtrSaTokenPlaceholder:

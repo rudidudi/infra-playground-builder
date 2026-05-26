@@ -873,7 +873,7 @@ resource "google_storage_bucket_iam_member" "data_public_bucket" {
     aws: () => `resource "aws_db_instance" "data_unencrypted_db" {
   identifier          = "vbuild-data-unencrypted-db"
   engine              = "postgres"
-  engine_version      = "15"
+  engine_version      = "17"
   instance_class      = "db.t3.micro"
   allocated_storage   = 20
   username            = "vbuild"
@@ -2489,7 +2489,7 @@ const CFN_BODIES: Record<string, () => string> = {
     Properties:
       DBInstanceIdentifier: vbuild-data-unencrypted-db
       Engine: postgres
-      EngineVersion: "15"
+      EngineVersion: "17"
       DBInstanceClass: db.t3.micro
       AllocatedStorage: 20
       MasterUsername: vbuild
@@ -2682,7 +2682,7 @@ const CFN_BODIES: Record<string, () => string> = {
   "data-cache-open": () => `  DataCacheOpenSg:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: vbuild-data-cache-open — Redis open to world
+      GroupDescription: vbuild-data-cache-open - Redis open to world
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 6379
@@ -2944,7 +2944,7 @@ function cfn(region: string, items: Component[]) {
   const parametersBlock = params.length ? `\nParameters:\n${params.join("\n\n")}\n` : "";
 
   return `AWSTemplateFormatVersion: "2010-09-09"
-Description: Vulnerabuild — intentionally vulnerable AWS infrastructure (deploy region: ${region})
+Description: "Vulnerabuild — intentionally vulnerable AWS infrastructure (deploy region: ${region})"
 ${parametersBlock}
 Resources:
 ${resources || "  Noop:\n    Type: AWS::CloudFormation::WaitConditionHandle\n"}

@@ -443,30 +443,30 @@ const COMPONENT_KEYWORDS: Record<string, string[]> = {
   "vm-imds-v1": ["imds", "imdsv1", "metadata service", "ssrf", "capital one", "instance role", "169.254", "metadata endpoint"],
   "vm-unencrypted-disk": ["unencrypted disk", "unencrypted volume", "disk encryption", "ebs encryption", "cmk", "encryption at rest", "no encryption"],
   "vm-secrets-userdata": ["user_data", "userdata", "user data", "bootstrap secret", "cloud-init", "startup script", "plaintext cred", "hardcoded cred", "secret in bootstrap"],
-  "data-public-bucket": ["public bucket", "s3 bucket", "open bucket", "gcs", "blob storage", "object storage", "anonymous read", "allusers", "public read", "public storage", "exposed bucket"],
-  "data-unencrypted-db": ["unencrypted database", "public database", "rds", "postgres", "sql database", "publicly accessible db", "weak db password", "database encryption"],
+  "data-public-bucket": ["bucket", "s3", "public bucket", "s3 bucket", "open bucket", "gcs", "blob storage", "object storage", "anonymous read", "allusers", "public read", "public storage", "exposed bucket"],
+  "data-unencrypted-db": ["database", "unencrypted database", "public database", "rds", "postgres", "sql database", "publicly accessible db", "weak db password", "database encryption"],
   "data-no-audit": ["audit logging", "no logs", "disabled logging", "cloudtrail", "no audit", "logging disabled", "no flow logs"],
   "data-public-search": ["opensearch", "elasticsearch", "elastic search", "public search", "search domain", "search index"],
   "data-public-snapshot": ["public snapshot", "shared snapshot", "snapshot", "public backup", "public ami", "disk snapshot"],
-  "data-cache-open": ["redis", "elasticache", "memcached", "memorystore", "open cache", "cache without auth", "unauthenticated cache", "cache instance"],
+  "data-cache-open": ["cache", "redis", "elasticache", "memcached", "memorystore", "open cache", "cache without auth", "unauthenticated cache", "cache instance"],
   "id-admin-user": ["admin user", "iam user", "static keys", "static access key", "long-lived key", "over-privileged user", "wildcard policy", "administrator access", "no mfa", "admin policy"],
   "id-priv-esc": ["privilege escalation", "priv esc", "passrole", "escalate privilege", "assume role chain", "privesc"],
   "id-over-sa": ["service account", "over-privileged service account", "owner role", "managed identity", "instance profile", "over-privileged role", "admin role on a vm"],
   "id-oidc-trust": ["oidc", "github actions", "federated identity", "workload identity", "trust policy", "sub claim", "confused deputy"],
   "id-root-account": ["root account", "root user", "root keys", "root mfa", "root access key"],
   "id-no-password-policy": ["password policy", "weak password policy", "password complexity", "password rotation"],
-  "ctr-public-registry": ["public registry", "ecr", "acr", "artifact registry", "anonymous push", "image scanning", "container registry"],
+  "ctr-public-registry": ["registry", "public registry", "ecr", "acr", "artifact registry", "anonymous push", "image scanning", "container registry"],
   "ctr-priv-pod": ["privileged pod", "container escape", "hostpath", "privileged container", "escape to host", "host root", "breakout"],
-  "ctr-public-cluster": ["public kubernetes", "public k8s", "public api server", "eks", "aks", "gke", "control plane", "anonymous auth", "kubernetes api", "cluster endpoint"],
+  "ctr-public-cluster": ["cluster", "public kubernetes", "public k8s", "public api server", "eks", "aks", "gke", "control plane", "anonymous auth", "kubernetes api", "cluster endpoint"],
   "ctr-sa-token": ["service account token", "sa token", "automount", "cluster-admin", "kubernetes rbac", "list secrets", "mounted token"],
   "ctr-image-as-root": ["run as root", "root container", "runasnonroot", "readonlyrootfilesystem", "container as root", "uid 0"],
   "fn-public-url": ["public function", "function url", "lambda url", "anonymous invoke", "public lambda", "unauthenticated function", "public cloud function"],
   "fn-secrets-env": ["secret in env", "environment variable secret", "hardcoded api key", "hardcoded secret", "hardcoded secrets", "function secret", "lambda secret", "secrets in a function", "env var secret"],
   "fn-loose-policy": ["resource policy", "wildcard invoke", "lambda permission", "cross-account invoke", "externalid", "over-broad function policy"],
-  "net-tls-weak": ["weak tls", "tls 1.0", "tls 1.1", "old tls", "cipher", "poodle", "deprecated tls", "weak cipher", "weak ssl"],
-  "net-dangling-dns": ["dangling dns", "subdomain takeover", "cname takeover", "dns takeover", "orphaned dns", "dangling record"],
+  "net-tls-weak": ["tls", "ssl", "weak tls", "tls 1.0", "tls 1.1", "old tls", "cipher", "poodle", "deprecated tls", "weak cipher", "weak ssl"],
+  "net-dangling-dns": ["dns", "dangling dns", "subdomain takeover", "cname takeover", "dns takeover", "orphaned dns", "dangling record"],
   "net-public-origin": ["cdn bypass", "waf bypass", "public origin", "origin reachable", "bypass cdn", "unprotected origin"],
-  "net-no-waf": ["no waf", "missing waf", "web application firewall", "cloud armor", "unprotected app", "without waf"],
+  "net-no-waf": ["waf", "no waf", "missing waf", "web application firewall", "cloud armor", "unprotected app", "without waf"],
 };
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
@@ -484,11 +484,24 @@ const PROVIDER_KEYWORDS: Record<Provider, string[]> = {
   gcp: ["gcp", "google cloud", "gke", "gcs", "bigquery", "cloud run"],
 };
 
+// True category-name terms. When the user names a whole category (e.g. "serverless functions",
+// "kubernetes", "networking") but no specific component crosses the threshold, the matcher
+// selects every component in that category.
+const CATEGORY_NAMES: Record<string, string[]> = {
+  vm: ["vm", "vms", "virtual machine", "virtual machines", "compute", "ec2", "ec2 instance", "gce", "compute engine"],
+  data: ["data layer", "datastore", "data services", "data stores", "storage", "object storage"],
+  identity: ["identity", "identities", "iam"],
+  container: ["container", "containers", "kubernetes", "k8s", "docker"],
+  serverless: ["serverless", "faas", "function", "functions", "cloud functions", "lambda", "lambdas"],
+  network: ["network", "networking", "perimeter", "edge", "firewall", "load balancer"],
+};
+
 // Whole-word / whole-phrase test so short aliases ("ecr", "s3", "aks") don't match inside
-// other words (e.g. "ecr" inside "secrets").
+// other words (e.g. "ecr" inside "secrets"). A trailing "s" is allowed so a keyword also
+// matches its simple plural ("bucket" → "buckets", "database" → "databases").
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const wordHit = (haystack: string, phrase: string) =>
-  new RegExp("(^|[^a-z0-9])" + escapeRe(phrase) + "($|[^a-z0-9])").test(haystack);
+  new RegExp("(^|[^a-z0-9])" + escapeRe(phrase) + "s?($|[^a-z0-9])").test(haystack);
 
 const ASSISTANT_STOP = new Set([
   "want", "with", "that", "this", "some", "give", "make", "need", "build", "create", "have",
@@ -528,7 +541,7 @@ function matchComponents(input: string): MatchResult {
     new Set(q.split(/[^a-z0-9]+/).filter((t) => t.length >= 3 && !ASSISTANT_STOP.has(t))),
   );
 
-  const scored: { id: string; score: number }[] = [];
+  const scored: { id: string; score: number; cat: string }[] = [];
   for (const cat of CATALOG) {
     const catHit = (CATEGORY_KEYWORDS[cat.id] ?? []).some((k) => wordHit(q, k));
     for (const comp of cat.components) {
@@ -540,12 +553,24 @@ function matchComponents(input: string): MatchResult {
         comp.vulns.map((v) => v.title + " " + v.desc).join(" ")).toLowerCase() + " ";
       for (const t of tokens) if (wordHit(hay, t)) score += 0.5;
       if (catHit) score += 0.5;
-      if (score > 0) scored.push({ id: comp.id, score });
+      if (score > 0) scored.push({ id: comp.id, score, cat: cat.id });
     }
   }
   scored.sort((a, b) => b.score - a.score);
-  const picks = scored.filter((s) => s.score >= 2).slice(0, 8);
-  return { command: "select", ids: picks.map((p) => p.id), provider };
+
+  const primary = scored.filter((s) => s.score >= 2);
+  const catsWithPrimary = new Set(primary.map((s) => s.cat));
+  const ids: string[] = primary.map((s) => s.id);
+
+  // Category fallback: the user named a whole category but nothing specific in it matched.
+  for (const cat of CATALOG) {
+    const named = (CATEGORY_NAMES[cat.id] ?? []).some((k) => wordHit(q, k));
+    if (named && !catsWithPrimary.has(cat.id)) {
+      for (const comp of cat.components) if (!ids.includes(comp.id)) ids.push(comp.id);
+    }
+  }
+
+  return { command: "select", ids: ids.slice(0, 12), provider };
 }
 
 // Standards references per vulnerability ID — CWE (weakness type), CVSS v3.1 base score,

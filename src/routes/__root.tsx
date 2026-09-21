@@ -7,8 +7,60 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
 import appCss from "../styles.css?url";
+
+const COOKIE_CONSENT_KEY = "vbuild-cookie-consent";
+
+function CookieConsent() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    // Runs client-side only. Show the banner unless a choice was already stored.
+    try {
+      if (!localStorage.getItem(COOKIE_CONSENT_KEY)) setVisible(true);
+    } catch {
+      setVisible(true);
+    }
+  }, []);
+
+  const choose = (value: "accepted" | "declined") => {
+    try {
+      localStorage.setItem(COOKIE_CONSENT_KEY, value);
+    } catch {
+      // storage blocked (private mode, etc.) — just dismiss for this session
+    }
+    setVisible(false);
+  };
+
+  if (!visible) return null;
+
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-4">
+      <div className="mx-auto max-w-3xl rounded-lg border border-border bg-card/95 backdrop-blur shadow-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <p className="text-xs text-muted-foreground leading-relaxed flex-1">
+          We use essential local storage to keep the console working and to remember this choice.
+          No tracking or third-party advertising cookies.
+        </p>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => choose("declined")}
+            className="rounded-md border border-border bg-background/60 px-3 py-1.5 font-mono text-xs text-muted-foreground hover:text-foreground hover:bg-background transition"
+          >
+            decline
+          </button>
+          <button
+            onClick={() => choose("accepted")}
+            className="rounded-md bg-primary px-3.5 py-1.5 font-mono text-xs font-medium text-primary-foreground hover:opacity-90 transition"
+          >
+            accept
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function NotFoundComponent() {
   return (
@@ -87,6 +139,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <CookieConsent />
     </QueryClientProvider>
   );
 }

@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import {
   Shield, Server, Database, KeyRound, Box, ChevronLeft, Copy, Download,
   AlertTriangle, Check, Plus, Minus, FileCode, Globe, Zap, Network, Layers,
-  Target, BookOpen,
+  Target, BookOpen, Sparkles, Send, X,
 } from "lucide-react";
 
 const REGIONS: Record<Provider, { id: string; label: string }[]> = {
@@ -432,6 +432,121 @@ export const ATTACK_PATHS: AttackPath[] = [
     ],
   },
 ];
+
+// ---------------- natural-language assistant ----------------
+
+// High-signal phrases per component. Matched as case-insensitive substrings against the
+// user's description; the catalog text (name / short / vuln titles + descriptions) is also
+// scanned as a fallback so the matcher still catches wording that isn't in this list.
+const COMPONENT_KEYWORDS: Record<string, string[]> = {
+  "vm-public-ssh": ["ssh", "rdp", "public host", "0.0.0.0", "port 22", "3389", "open port", "remote access", "bastion", "exposed vm", "exposed instance", "open security group"],
+  "vm-imds-v1": ["imds", "imdsv1", "metadata service", "ssrf", "capital one", "instance role", "169.254", "metadata endpoint"],
+  "vm-unencrypted-disk": ["unencrypted disk", "unencrypted volume", "disk encryption", "ebs encryption", "cmk", "encryption at rest", "no encryption"],
+  "vm-secrets-userdata": ["user_data", "userdata", "user data", "bootstrap secret", "cloud-init", "startup script", "plaintext cred", "hardcoded cred", "secret in bootstrap"],
+  "data-public-bucket": ["public bucket", "s3 bucket", "open bucket", "gcs", "blob storage", "object storage", "anonymous read", "allusers", "public read", "public storage", "exposed bucket"],
+  "data-unencrypted-db": ["unencrypted database", "public database", "rds", "postgres", "sql database", "publicly accessible db", "weak db password", "database encryption"],
+  "data-no-audit": ["audit logging", "no logs", "disabled logging", "cloudtrail", "no audit", "logging disabled", "no flow logs"],
+  "data-public-search": ["opensearch", "elasticsearch", "elastic search", "public search", "search domain", "search index"],
+  "data-public-snapshot": ["public snapshot", "shared snapshot", "snapshot", "public backup", "public ami", "disk snapshot"],
+  "data-cache-open": ["redis", "elasticache", "memcached", "memorystore", "open cache", "cache without auth", "unauthenticated cache", "cache instance"],
+  "id-admin-user": ["admin user", "iam user", "static keys", "static access key", "long-lived key", "over-privileged user", "wildcard policy", "administrator access", "no mfa", "admin policy"],
+  "id-priv-esc": ["privilege escalation", "priv esc", "passrole", "escalate privilege", "assume role chain", "privesc"],
+  "id-over-sa": ["service account", "over-privileged service account", "owner role", "managed identity", "instance profile", "over-privileged role", "admin role on a vm"],
+  "id-oidc-trust": ["oidc", "github actions", "federated identity", "workload identity", "trust policy", "sub claim", "confused deputy"],
+  "id-root-account": ["root account", "root user", "root keys", "root mfa", "root access key"],
+  "id-no-password-policy": ["password policy", "weak password policy", "password complexity", "password rotation"],
+  "ctr-public-registry": ["public registry", "ecr", "acr", "artifact registry", "anonymous push", "image scanning", "container registry"],
+  "ctr-priv-pod": ["privileged pod", "container escape", "hostpath", "privileged container", "escape to host", "host root", "breakout"],
+  "ctr-public-cluster": ["public kubernetes", "public k8s", "public api server", "eks", "aks", "gke", "control plane", "anonymous auth", "kubernetes api", "cluster endpoint"],
+  "ctr-sa-token": ["service account token", "sa token", "automount", "cluster-admin", "kubernetes rbac", "list secrets", "mounted token"],
+  "ctr-image-as-root": ["run as root", "root container", "runasnonroot", "readonlyrootfilesystem", "container as root", "uid 0"],
+  "fn-public-url": ["public function", "function url", "lambda url", "anonymous invoke", "public lambda", "unauthenticated function", "public cloud function"],
+  "fn-secrets-env": ["secret in env", "environment variable secret", "hardcoded api key", "hardcoded secret", "hardcoded secrets", "function secret", "lambda secret", "secrets in a function", "env var secret"],
+  "fn-loose-policy": ["resource policy", "wildcard invoke", "lambda permission", "cross-account invoke", "externalid", "over-broad function policy"],
+  "net-tls-weak": ["weak tls", "tls 1.0", "tls 1.1", "old tls", "cipher", "poodle", "deprecated tls", "weak cipher", "weak ssl"],
+  "net-dangling-dns": ["dangling dns", "subdomain takeover", "cname takeover", "dns takeover", "orphaned dns", "dangling record"],
+  "net-public-origin": ["cdn bypass", "waf bypass", "public origin", "origin reachable", "bypass cdn", "unprotected origin"],
+  "net-no-waf": ["no waf", "missing waf", "web application firewall", "cloud armor", "unprotected app", "without waf"],
+};
+
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  vm: ["vm", "virtual machine", "compute", "ec2", "instance", "server", "host"],
+  data: ["data", "storage", "database", "bucket", "datastore"],
+  identity: ["identity", "iam", "permission", "access control", "role", "credential", "privilege"],
+  container: ["container", "kubernetes", "k8s", "docker", "pod", "cluster", "registry"],
+  serverless: ["serverless", "lambda", "function", "faas", "cloud function", "azure function"],
+  network: ["network", "dns", "tls", "ssl", "edge", "perimeter", "firewall", "load balancer", "waf", "cdn"],
+};
+
+const PROVIDER_KEYWORDS: Record<Provider, string[]> = {
+  aws: ["aws", "amazon", "ec2", "s3", "iam", "lambda", "eks", "rds", "cloudformation"],
+  azure: ["azure", "aks", "blob", "entra", "azuread"],
+  gcp: ["gcp", "google cloud", "gke", "gcs", "bigquery", "cloud run"],
+};
+
+// Whole-word / whole-phrase test so short aliases ("ecr", "s3", "aks") don't match inside
+// other words (e.g. "ecr" inside "secrets").
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const wordHit = (haystack: string, phrase: string) =>
+  new RegExp("(^|[^a-z0-9])" + escapeRe(phrase) + "($|[^a-z0-9])").test(haystack);
+
+const ASSISTANT_STOP = new Set([
+  "want", "with", "that", "this", "some", "give", "make", "need", "build", "create", "have",
+  "and", "for", "are", "you", "your", "from", "into", "using", "use", "them", "then", "also",
+  "only", "just", "like", "would", "should", "could", "please", "help", "setup", "set", "get",
+  "show", "add", "include", "scenario", "scenarios", "vulnerable", "vulnerability",
+  "vulnerabilities", "infra", "infrastructure", "cloud", "environment", "account", "misconfig",
+  "misconfiguration", "misconfigurations",
+]);
+
+type MatchResult = {
+  command: "select" | "clear" | "all";
+  ids: string[];
+  provider?: Provider;
+};
+
+// Deterministic matcher: score every catalog component against the description, keep the ones
+// with a real signal. No LLM / network call — instant, free, and predictable.
+function matchComponents(input: string): MatchResult {
+  const q = " " + input.toLowerCase().replace(/[_/]/g, " ") + " ";
+
+  if (/\b(clear|reset|start over|deselect all|remove all|empty)\b/.test(q)) {
+    return { command: "clear", ids: [] };
+  }
+  if (/\b(everything|all of them|all components|full catalog|one of each|kitchen sink|the whole catalog|select all)\b/.test(q)) {
+    return { command: "all", ids: CATALOG.flatMap((c) => c.components.map((x) => x.id)) };
+  }
+
+  let provider: Provider | undefined;
+  let bestProv = 0;
+  (Object.keys(PROVIDER_KEYWORDS) as Provider[]).forEach((p) => {
+    const n = PROVIDER_KEYWORDS[p].filter((k) => wordHit(q, k)).length;
+    if (n > bestProv) { bestProv = n; provider = p; }
+  });
+
+  const tokens = Array.from(
+    new Set(q.split(/[^a-z0-9]+/).filter((t) => t.length >= 3 && !ASSISTANT_STOP.has(t))),
+  );
+
+  const scored: { id: string; score: number }[] = [];
+  for (const cat of CATALOG) {
+    const catHit = (CATEGORY_KEYWORDS[cat.id] ?? []).some((k) => wordHit(q, k));
+    for (const comp of cat.components) {
+      let score = 0;
+      for (const kw of COMPONENT_KEYWORDS[comp.id] ?? []) {
+        if (wordHit(q, kw)) score += 2 + Math.min(kw.length / 12, 2);
+      }
+      const hay = " " + (comp.name + " " + comp.short + " " +
+        comp.vulns.map((v) => v.title + " " + v.desc).join(" ")).toLowerCase() + " ";
+      for (const t of tokens) if (wordHit(hay, t)) score += 0.5;
+      if (catHit) score += 0.5;
+      if (score > 0) scored.push({ id: comp.id, score });
+    }
+  }
+  scored.sort((a, b) => b.score - a.score);
+  const picks = scored.filter((s) => s.score >= 2).slice(0, 8);
+  return { command: "select", ids: picks.map((p) => p.id), provider };
+}
 
 // Standards references per vulnerability ID — CWE (weakness type), CVSS v3.1 base score,
 // CIS Benchmark control, and a representative CVE where the misconfig has a direct, well-known
@@ -2973,10 +3088,18 @@ function BuildPage() {
   const [provider, setProvider] = useState<Provider>(initialProvider);
   const [region, setRegion] = useState<string>(REGIONS[initialProvider][0].id);
   const [copied, setCopied] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
 
   const changeProvider = (p: Provider) => {
     setProvider(p);
     setRegion(REGIONS[p][0].id);
+  };
+
+  const applyAssistant = (ids: string[], prov?: Provider) => {
+    setSelectedIds((s) => Array.from(new Set([...s, ...ids])));
+    if (prov) changeProvider(prov);
+    const firstCat = categoryForComponent(ids[0] ?? "");
+    if (firstCat) setActiveCat(firstCat);
   };
 
   const selected = useMemo(
@@ -3040,6 +3163,12 @@ function BuildPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setAssistantOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1 font-mono text-xs text-primary hover:bg-primary/20 transition"
+            >
+              <Sparkles className="h-3.5 w-3.5" /> assistant
+            </button>
             <Link to="/attack-paths" className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground">
               <BookOpen className="h-3.5 w-3.5" /> attack paths
             </Link>
@@ -3255,6 +3384,157 @@ function BuildPage() {
           </div>
         </section>
       </main>
+
+      <Assistant
+        open={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        onApply={applyAssistant}
+        onClear={() => setSelectedIds([])}
+      />
+    </div>
+  );
+}
+
+type ChatMsg = { role: "user" | "assistant"; text: string; chips?: { id: string; name: string }[] };
+
+function Assistant({
+  open,
+  onClose,
+  onApply,
+  onClear,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onApply: (ids: string[], provider?: Provider) => void;
+  onClear: () => void;
+}) {
+  const [messages, setMessages] = useState<ChatMsg[]>([
+    {
+      role: "assistant",
+      text: "Describe the environment you want to build and I'll pick the matching vulnerabilities from the catalog and select them for you.",
+    },
+  ]);
+  const [input, setInput] = useState("");
+
+  const compById = useMemo(() => {
+    const m: Record<string, Component> = {};
+    CATALOG.forEach((c) => c.components.forEach((x) => (m[x.id] = x)));
+    return m;
+  }, []);
+
+  const examples = [
+    "a public S3 bucket and an over-privileged IAM user",
+    "the Capital One SSRF → IMDS scenario",
+    "kubernetes container escape on GCP",
+    "weak TLS load balancer and a dangling DNS record",
+  ];
+
+  if (!open) return null;
+
+  const runMatch = (text: string) => {
+    const res = matchComponents(text);
+    let reply: ChatMsg;
+    if (res.command === "clear") {
+      onClear();
+      reply = { role: "assistant", text: "Cleared the selection. Describe what you'd like next." };
+    } else if (res.ids.length === 0) {
+      reply = {
+        role: "assistant",
+        text: "I couldn't map that to the catalog. Try naming the tech or the weakness — e.g. “kubernetes container escape”, “public bucket”, “IMDSv1 SSRF”, “weak TLS load balancer”.",
+      };
+    } else {
+      onApply(res.ids, res.provider);
+      const chips = res.ids.map((id) => ({ id, name: compById[id]?.name ?? id }));
+      const verb = res.command === "all" ? "Selected the full catalog" : `Added ${res.ids.length} component${res.ids.length > 1 ? "s" : ""}`;
+      const prov = res.provider ? ` and switched to ${PROVIDER_LABEL[res.provider]}` : "";
+      reply = { role: "assistant", text: `${verb}${prov}:`, chips };
+    }
+    setMessages((m) => [...m, { role: "user", text }, reply]);
+  };
+
+  const send = () => {
+    const text = input.trim();
+    if (!text) return;
+    setInput("");
+    runMatch(text);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg max-h-[82vh] rounded-xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background/40">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="font-mono text-sm">assistant</span>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {messages.map((m, i) => (
+            <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+              <div
+                className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
+                  m.role === "user"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background/60 border border-border text-foreground"
+                }`}
+              >
+                <div>{m.text}</div>
+                {m.chips && m.chips.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {m.chips.map((c) => (
+                      <span
+                        key={c.id}
+                        className="font-mono text-[10px] px-1.5 py-0.5 rounded border border-primary/40 bg-primary/10 text-primary"
+                      >
+                        {c.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          {messages.length === 1 && (
+            <div className="pt-1 flex flex-wrap gap-1.5">
+              {examples.map((ex) => (
+                <button
+                  key={ex}
+                  onClick={() => runMatch(ex)}
+                  className="text-left font-mono text-[11px] px-2 py-1 rounded-md border border-border bg-background/40 text-muted-foreground hover:text-foreground hover:bg-background transition"
+                >
+                  {ex}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-border p-3 flex items-center gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") send(); }}
+            placeholder="Describe what you want to build..."
+            className="flex-1 rounded-md border border-border bg-background/60 px-3 py-2 text-sm focus:outline-none focus:border-primary/60"
+          />
+          <button
+            onClick={send}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
+            <Send className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

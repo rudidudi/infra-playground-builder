@@ -27,7 +27,7 @@ function AttackPathsPage() {
       <header className="relative z-10 border-b border-border/60 backdrop-blur">
         <div className="mx-auto max-w-[1600px] px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/" className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground">
+            <Link to="/build" className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground">
               <ChevronLeft className="h-3.5 w-3.5" /> back
             </Link>
             <span className="h-4 w-px bg-border" />

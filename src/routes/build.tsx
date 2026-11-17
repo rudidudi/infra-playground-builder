@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Shield, Server, Database, KeyRound, Box, ChevronLeft, Copy, Download,
   AlertTriangle, Check, Plus, Minus, FileCode, Globe, Zap, Network, Layers,
-  Target, BookOpen, Sparkles, Send, X,
+  Target, BookOpen, Sparkles, Send, X, Paperclip, Loader2,
 } from "lucide-react";
 
 const REGIONS: Record<Provider, { id: string; label: string }[]> = {
@@ -551,7 +551,11 @@ function matchComponents(input: string): MatchResult {
       }
       const hay = " " + (comp.name + " " + comp.short + " " +
         comp.vulns.map((v) => v.title + " " + v.desc).join(" ")).toLowerCase() + " ";
-      for (const t of tokens) if (wordHit(hay, t)) score += 0.5;
+      // Incidental word hits on the catalog text only re-rank — capped so they can
+      // never cross the selection threshold alone (keeps long docs / RFPs precise).
+      let tokenScore = 0;
+      for (const t of tokens) if (wordHit(hay, t)) tokenScore += 0.5;
+      score += Math.min(tokenScore, 1);
       if (catHit) score += 0.5;
       if (score > 0) scored.push({ id: comp.id, score, cat: cat.id });
     }
@@ -3436,10 +3440,12 @@ function Assistant({
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
       role: "assistant",
-      text: "Describe the environment you want to build and I'll pick the matching vulnerabilities from the catalog and select them for you.",
+      text: "Describe the environment you want to build — or attach an RFP / requirements file — and I'll pick the matching vulnerabilities from the catalog and select them for you.",
     },
   ]);
   const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const compById = useMemo(() => {
     const m: Record<string, Component> = {};
@@ -3482,6 +3488,74 @@ function Assistant({
     if (!text) return;
     setInput("");
     runMatch(text);
+  };
+
+  // Pull plain text out of an uploaded file. Text formats are read directly;
+  // PDFs (the usual RFP format) go through pdf.js, loaded lazily on first use.
+  const extractText = async (file: File): Promise<string> => {
+    const name = file.name.toLowerCase();
+    const isText =
+      file.type.startsWith("text/") ||
+      /\.(txt|md|markdown|csv|tsv|json|ya?ml|log|text|conf|ini|xml)$/i.test(name);
+    if (isText) return file.text();
+    if (file.type === "application/pdf" || name.endsWith(".pdf")) {
+      const pdfjs = await import("pdfjs-dist");
+      const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+      pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+      const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+      const pages = Math.min(doc.numPages, 40);
+      let out = "";
+      for (let p = 1; p <= pages; p++) {
+        const content = await (await doc.getPage(p)).getTextContent();
+        out += content.items.map((it) => ("str" in it ? it.str : "")).join(" ") + "\n";
+      }
+      return out;
+    }
+    throw new Error("unsupported");
+  };
+
+  const onFile = async (file: File) => {
+    const label = `📄 ${file.name}`;
+    setBusy(true);
+    try {
+      const raw = (await extractText(file)).replace(/\s+/g, " ").trim();
+      let reply: ChatMsg;
+      if (!raw) {
+        reply = {
+          role: "assistant",
+          text: "I couldn't read any text from that file — if it's a scanned PDF, paste the requirements into the box instead.",
+        };
+      } else {
+        const res = matchComponents(raw.slice(0, 40000));
+        if (res.ids.length === 0) {
+          reply = {
+            role: "assistant",
+            text: `I read ${file.name}, but nothing in it mapped to the catalog. Try a document that names the tech or weaknesses to cover.`,
+          };
+        } else {
+          onApply(res.ids, res.provider);
+          const chips = res.ids.map((id) => ({ id, name: compById[id]?.name ?? id }));
+          const prov = res.provider ? ` and switched to ${PROVIDER_LABEL[res.provider]}` : "";
+          reply = {
+            role: "assistant",
+            text: `From ${file.name} I selected ${res.ids.length} component${res.ids.length > 1 ? "s" : ""}${prov}:`,
+            chips,
+          };
+        }
+      }
+      setMessages((m) => [...m, { role: "user", text: label }, reply]);
+    } catch {
+      setMessages((m) => [
+        ...m,
+        { role: "user", text: label },
+        {
+          role: "assistant",
+          text: "I can read text files (.txt, .md, .csv, .json…) and PDFs. For other formats, paste the requirements into the box.",
+        },
+      ]);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -3546,15 +3620,37 @@ function Assistant({
 
         <div className="border-t border-border p-3 flex items-center gap-2">
           <input
+            ref={fileRef}
+            type="file"
+            accept=".txt,.md,.markdown,.csv,.tsv,.json,.yaml,.yml,.log,.xml,.pdf,text/*,application/pdf"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) onFile(f);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={busy}
+            title="Attach requirements or an RFP (.txt, .md, .pdf)"
+            className="inline-flex items-center justify-center rounded-md border border-border bg-background/60 px-2.5 py-2 text-muted-foreground hover:text-foreground hover:bg-background disabled:opacity-50"
+          >
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
+          </button>
+          <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") send(); }}
-            placeholder="Describe what you want to build..."
-            className="flex-1 rounded-md border border-border bg-background/60 px-3 py-2 text-sm focus:outline-none focus:border-primary/60"
+            placeholder={busy ? "Reading your file…" : "Describe it — or attach an RFP…"}
+            disabled={busy}
+            className="flex-1 rounded-md border border-border bg-background/60 px-3 py-2 text-sm focus:outline-none focus:border-primary/60 disabled:opacity-50"
           />
           <button
             onClick={send}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
           >
             <Send className="h-3.5 w-3.5" />
           </button>

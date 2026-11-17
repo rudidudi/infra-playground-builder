@@ -520,14 +520,18 @@ type MatchResult = {
 
 // Deterministic matcher: score every catalog component against the description, keep the ones
 // with a real signal. No LLM / network call — instant, free, and predictable.
-function matchComponents(input: string): MatchResult {
+// `commands: false` skips the clear / select-all shortcuts — used for uploaded documents,
+// where words like "clear", "empty" or "everything" are ordinary prose, not instructions.
+function matchComponents(input: string, opts: { commands?: boolean } = {}): MatchResult {
   const q = " " + input.toLowerCase().replace(/[_/]/g, " ") + " ";
 
-  if (/\b(clear|reset|start over|deselect all|remove all|empty)\b/.test(q)) {
-    return { command: "clear", ids: [] };
-  }
-  if (/\b(everything|all of them|all components|full catalog|one of each|kitchen sink|the whole catalog|select all)\b/.test(q)) {
-    return { command: "all", ids: CATALOG.flatMap((c) => c.components.map((x) => x.id)) };
+  if (opts.commands !== false) {
+    if (/\b(clear|reset|start over|deselect all|remove all|empty)\b/.test(q)) {
+      return { command: "clear", ids: [] };
+    }
+    if (/\b(everything|all of them|all components|full catalog|one of each|kitchen sink|the whole catalog|select all)\b/.test(q)) {
+      return { command: "all", ids: CATALOG.flatMap((c) => c.components.map((x) => x.id)) };
+    }
   }
 
   let provider: Provider | undefined;
@@ -3526,7 +3530,7 @@ function Assistant({
           text: "I couldn't read any text from that file — if it's a scanned PDF, paste the requirements into the box instead.",
         };
       } else {
-        const res = matchComponents(raw.slice(0, 40000));
+        const res = matchComponents(raw.slice(0, 40000), { commands: false });
         if (res.ids.length === 0) {
           reply = {
             role: "assistant",

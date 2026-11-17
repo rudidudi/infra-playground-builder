@@ -45,7 +45,7 @@ export const Route = createFileRoute("/build")({
   }),
   head: () => ({
     meta: [
-      { title: "Build — Vulnerabuild" },
+      { title: "Build | Vulnerabuild" },
       { name: "description", content: "Compose vulnerable infrastructure and generate Terraform or CloudFormation for AWS, Azure and GCP." },
     ],
   }),
@@ -91,7 +91,7 @@ const CATALOG: Category[] = [
         id: "vm-imds-v1", name: "SSRF→IMDS chain", short: "IMDSv1 + over-permissive role (Capital One pattern)",
         providers: ["aws"],
         vulns: [
-          { id: "EC2-022", title: "IMDSv1 enabled", severity: "critical", desc: "Legacy metadata service exposes role credentials to SSRF — Capital One 2019 pattern." },
+          { id: "EC2-022", title: "IMDSv1 enabled", severity: "critical", desc: "Legacy metadata service exposes role credentials to SSRF, Capital One 2019 pattern." },
           { id: "IAM-031", title: "Over-permissive instance role", severity: "high", desc: "Attached role has wildcard s3:* and iam:PassRole." },
         ],
       },
@@ -99,7 +99,7 @@ const CATALOG: Category[] = [
         id: "vm-unencrypted-disk", name: "Unencrypted volume", short: "Data disk without CMK",
         providers: ["aws", "azure", "gcp"],
         vulns: [
-          { id: "VM-301", title: "Storage encryption off", severity: "high", desc: "Volume created without a customer-managed key — data at rest only platform-default protected." },
+          { id: "VM-301", title: "Storage encryption off", severity: "high", desc: "Volume created without a customer-managed key, data at rest only platform-default protected." },
           { id: "VM-303", title: "Snapshot inherits no encryption", severity: "medium", desc: "Snapshots of the volume are also unencrypted." },
         ],
       },
@@ -108,7 +108,7 @@ const CATALOG: Category[] = [
         providers: ["aws", "azure", "gcp"],
         vulns: [
           { id: "SEC-201", title: "API key in user_data", severity: "critical", desc: "Cloud-init / custom_data / startup-script contains plaintext API tokens and DB credentials." },
-          { id: "SEC-203", title: "user_data readable via IMDS", severity: "high", desc: "Bootstrap script retrievable through the metadata service — credential bleed." },
+          { id: "SEC-203", title: "user_data readable via IMDS", severity: "high", desc: "Bootstrap script retrievable through the metadata service, credential bleed." },
         ],
       },
     ],
@@ -123,7 +123,7 @@ const CATALOG: Category[] = [
         vulns: [
           { id: "S3-001", title: "Public ACL", severity: "critical", desc: "Object ACLs grant AllUsers read and write." },
           { id: "S3-004", title: "Block Public Access off", severity: "critical", desc: "Account-level public access block disabled." },
-          { id: "S3-010", title: "Versioning disabled", severity: "medium", desc: "No object versioning — destructive overwrite is unrecoverable." },
+          { id: "S3-010", title: "Versioning disabled", severity: "medium", desc: "No object versioning, destructive overwrite is unrecoverable." },
         ],
       },
       {
@@ -147,7 +147,7 @@ const CATALOG: Category[] = [
         id: "data-public-search", name: "Public search domain", short: "Elasticsearch / OpenSearch open to the world",
         providers: ["aws"],
         vulns: [
-          { id: "OS-001", title: "Domain accessible from 0.0.0.0/0", severity: "critical", desc: "Search endpoint open to the public internet — recurring data-leak vector." },
+          { id: "OS-001", title: "Domain accessible from 0.0.0.0/0", severity: "critical", desc: "Search endpoint open to the public internet, recurring data-leak vector." },
           { id: "OS-003", title: "No fine-grained access control", severity: "critical", desc: "Master user disabled; no per-index permissions." },
           { id: "OS-007", title: "Audit logs disabled", severity: "medium", desc: "Slow / audit log exports off." },
         ],
@@ -156,7 +156,7 @@ const CATALOG: Category[] = [
         id: "data-public-snapshot", name: "Public DB/disk snapshot", short: "Snapshot shared with all accounts",
         providers: ["aws", "azure", "gcp"],
         vulns: [
-          { id: "SNAP-001", title: "Snapshot shared with all", severity: "critical", desc: "RDS / EBS / managed-disk snapshot marked public — restorable by anyone." },
+          { id: "SNAP-001", title: "Snapshot shared with all", severity: "critical", desc: "RDS / EBS / managed-disk snapshot marked public, restorable by anyone." },
           { id: "SNAP-005", title: "Snapshot unencrypted", severity: "high", desc: "Snapshot contents accessible without a CMK." },
         ],
       },
@@ -164,7 +164,7 @@ const CATALOG: Category[] = [
         id: "data-cache-open", name: "Open cache instance", short: "Redis / ElastiCache without AUTH",
         providers: ["aws", "azure", "gcp"],
         vulns: [
-          { id: "CACHE-001", title: "No AUTH token", severity: "critical", desc: "Cache accepts unauthenticated commands — full data dump trivial." },
+          { id: "CACHE-001", title: "No AUTH token", severity: "critical", desc: "Cache accepts unauthenticated commands, full data dump trivial." },
           { id: "CACHE-005", title: "Public network access", severity: "high", desc: "Cache placed in a public subnet / no firewall rules." },
         ],
       },
@@ -179,7 +179,7 @@ const CATALOG: Category[] = [
         providers: ["aws", "azure", "gcp"],
         vulns: [
           { id: "IAM-001", title: "Admin policy attached", severity: "critical", desc: "Principal granted *:* on all resources." },
-          { id: "IAM-005", title: "Long-lived static keys", severity: "high", desc: "Programmatic access via never-rotated keys — biggest 2025-era cloud breach vector." },
+          { id: "IAM-005", title: "Long-lived static keys", severity: "high", desc: "Programmatic access via never-rotated keys, biggest 2025-era cloud breach vector." },
           { id: "IAM-009", title: "MFA not enforced", severity: "high", desc: "No MFA condition on the trust or access policy." },
         ],
       },
@@ -202,7 +202,7 @@ const CATALOG: Category[] = [
         id: "id-oidc-trust", name: "Weak OIDC trust", short: "GitHub Actions OIDC without sub restriction",
         providers: ["aws", "azure", "gcp"],
         vulns: [
-          { id: "IAM-040", title: "OIDC trust without sub restriction", severity: "critical", desc: "Trust policy allows any repository / workflow to assume the role — confused-deputy primitive." },
+          { id: "IAM-040", title: "OIDC trust without sub restriction", severity: "critical", desc: "Trust policy allows any repository / workflow to assume the role, confused-deputy primitive." },
           { id: "IAM-041", title: "Audience claim not pinned", severity: "high", desc: "aud condition missing or wildcarded." },
         ],
       },
@@ -210,7 +210,7 @@ const CATALOG: Category[] = [
         id: "id-root-account", name: "Root account hygiene", short: "Root keys / no MFA / no detection",
         providers: ["aws"],
         vulns: [
-          { id: "IAM-050", title: "Root has access keys", severity: "critical", desc: "Long-lived programmatic access on the root account — irrecoverable on compromise." },
+          { id: "IAM-050", title: "Root has access keys", severity: "critical", desc: "Long-lived programmatic access on the root account, irrecoverable on compromise." },
           { id: "IAM-051", title: "MFA not enabled on root", severity: "critical", desc: "Root sign-in protected only by password." },
           { id: "IAM-052", title: "No detection of root usage", severity: "high", desc: "No CloudWatch alarm or AWS Config rule firing on root sign-in." },
         ],
@@ -220,7 +220,7 @@ const CATALOG: Category[] = [
         providers: ["aws"],
         vulns: [
           { id: "IAM-070", title: "No password complexity", severity: "medium", desc: "Min length 4, no uppercase / digit / symbol requirements." },
-          { id: "IAM-072", title: "No password rotation", severity: "medium", desc: "max_password_age unset — passwords valid indefinitely." },
+          { id: "IAM-072", title: "No password rotation", severity: "medium", desc: "max_password_age unset, passwords valid indefinitely." },
         ],
       },
     ],
@@ -258,7 +258,7 @@ const CATALOG: Category[] = [
         id: "ctr-sa-token", name: "Mounted SA token + broad RBAC", short: "Default SA can list secrets cluster-wide",
         providers: ["aws", "azure", "gcp"],
         vulns: [
-          { id: "K8S-050", title: "automountServiceAccountToken default-on", severity: "high", desc: "Pod inherits a token at /var/run/secrets — stealable on compromise." },
+          { id: "K8S-050", title: "automountServiceAccountToken default-on", severity: "high", desc: "Pod inherits a token at /var/run/secrets, stealable on compromise." },
           { id: "K8S-052", title: "SA can list secrets cluster-wide", severity: "high", desc: "Bound role allows get / list on Secrets in all namespaces." },
         ],
       },
@@ -267,7 +267,7 @@ const CATALOG: Category[] = [
         providers: ["aws", "azure", "gcp"],
         vulns: [
           { id: "K8S-060", title: "runAsNonRoot not enforced", severity: "high", desc: "Pod spec does not require non-root execution." },
-          { id: "K8S-062", title: "Writable root filesystem", severity: "medium", desc: "No readOnlyRootFilesystem — attacker can drop persistent binaries." },
+          { id: "K8S-062", title: "Writable root filesystem", severity: "medium", desc: "No readOnlyRootFilesystem, attacker can drop persistent binaries." },
         ],
       },
     ],
@@ -289,7 +289,7 @@ const CATALOG: Category[] = [
         id: "fn-secrets-env", name: "Secrets in environment", short: "Hardcoded API keys in env vars",
         providers: ["aws", "azure", "gcp"],
         vulns: [
-          { id: "SEC-101", title: "Hardcoded API key in env", severity: "critical", desc: "Function env vars contain plaintext tokens / DB creds — readable by anyone with describe-function." },
+          { id: "SEC-101", title: "Hardcoded API key in env", severity: "critical", desc: "Function env vars contain plaintext tokens / DB creds, readable by anyone with describe-function." },
           { id: "SEC-102", title: "Env vars unencrypted at rest", severity: "high", desc: "Function environment is not encrypted with a customer-managed key." },
         ],
       },
@@ -298,7 +298,7 @@ const CATALOG: Category[] = [
         providers: ["aws", "azure", "gcp"],
         vulns: [
           { id: "FN-014", title: "Wildcard invoke permission", severity: "high", desc: "Resource policy grants invoke to *." },
-          { id: "FN-016", title: "Cross-account without ExternalId", severity: "high", desc: "Trust allows arbitrary external accounts — no condition keys scope it." },
+          { id: "FN-016", title: "Cross-account without ExternalId", severity: "high", desc: "Trust allows arbitrary external accounts, no condition keys scope it." },
         ],
       },
     ],
@@ -319,7 +319,7 @@ const CATALOG: Category[] = [
         id: "net-dangling-dns", name: "Dangling DNS record", short: "Subdomain takeover risk",
         providers: ["aws", "azure", "gcp"],
         vulns: [
-          { id: "NET-201", title: "DNS points to deleted resource", severity: "critical", desc: "CNAME references a deprovisioned cloud resource — attacker can re-register the underlying name and hijack the subdomain." },
+          { id: "NET-201", title: "DNS points to deleted resource", severity: "critical", desc: "CNAME references a deprovisioned cloud resource, attacker can re-register the underlying name and hijack the subdomain." },
         ],
       },
       {
@@ -366,7 +366,7 @@ export const ATTACK_PATHS: AttackPath[] = [
     estTime: "10 min",
     steps: [
       { actor: "Attacker", action: "Discovers the bucket name via Google dorking, GitHub leaks, or a brute-force wordlist.", exploits: [] },
-      { actor: "Attacker", action: "Lists contents anonymously: `aws s3 ls s3://<bucket> --no-sign-request` — public ACL allows unauthenticated reads.", exploits: ["S3-001", "S3-004"] },
+      { actor: "Attacker", action: "Lists contents anonymously: `aws s3 ls s3://<bucket> --no-sign-request`, public ACL allows unauthenticated reads.", exploits: ["S3-001", "S3-004"] },
       { actor: "Attacker", action: "Exfiltrates everything: `aws s3 sync s3://<bucket> ./loot --no-sign-request`.", exploits: ["S3-001"] },
     ],
   },
@@ -381,7 +381,7 @@ export const ATTACK_PATHS: AttackPath[] = [
     estTime: "30 min",
     steps: [
       { actor: "Attacker", action: "Identifies an SSRF primitive in the app (e.g. a URL-fetch parameter that follows redirects).", exploits: [] },
-      { actor: "Attacker", action: "Pivots SSRF to `http://169.254.169.254/latest/meta-data/iam/security-credentials/<role>` — IMDSv1 returns STS credentials in plaintext, no token required.", exploits: ["EC2-022"] },
+      { actor: "Attacker", action: "Pivots SSRF to `http://169.254.169.254/latest/meta-data/iam/security-credentials/<role>`, IMDSv1 returns STS credentials in plaintext, no token required.", exploits: ["EC2-022"] },
       { actor: "Attacker", action: "Exports the credentials and runs `aws s3 ls` against discovered buckets. The role's wildcard `s3:*` grants account-wide access.", exploits: ["IAM-031", "S3-001", "S3-004"] },
     ],
   },
@@ -395,7 +395,7 @@ export const ATTACK_PATHS: AttackPath[] = [
     objective: "Assume the target AWS role from an arbitrary workflow you own.",
     estTime: "20 min",
     steps: [
-      { actor: "Attacker", action: "Discovers the target's role ARN — often committed to a public `.github/workflows/*.yml` or leaked in build logs.", exploits: [] },
+      { actor: "Attacker", action: "Discovers the target's role ARN, often committed to a public `.github/workflows/*.yml` or leaked in build logs.", exploits: [] },
       { actor: "Attacker", action: "Creates a workflow in their own repo that calls `aws-actions/configure-aws-credentials` with the target role-arn. The role's trust policy has no `sub` condition.", exploits: ["IAM-040"] },
       { actor: "Attacker", action: "Workflow assumes the role and runs `aws sts get-caller-identity` → AdministratorAccess. Pivots to any resource.", exploits: ["IAM-040", "IAM-041"] },
     ],
@@ -411,7 +411,7 @@ export const ATTACK_PATHS: AttackPath[] = [
     estTime: "15 min",
     steps: [
       { actor: "Attacker", action: "Enumerates subdomains with `subfinder` / Amass. `promo.<target>.com` resolves to a CNAME pointing at `<target>-deleted-bucket.s3.amazonaws.com`.", exploits: [] },
-      { actor: "Attacker", action: "Tries to GET the bucket — receives `NoSuchBucket`. Registers a new S3 bucket with the exact name in their own account.", exploits: ["NET-201"] },
+      { actor: "Attacker", action: "Tries to GET the bucket, receives `NoSuchBucket`. Registers a new S3 bucket with the exact name in their own account.", exploits: ["NET-201"] },
       { actor: "Attacker", action: "Uploads `index.html` containing a credential-phishing form. Victims now load attacker content from a domain they trust.", exploits: ["NET-201"] },
     ],
   },
@@ -425,10 +425,10 @@ export const ATTACK_PATHS: AttackPath[] = [
     objective: "Obtain root on a Kubernetes node by poisoning the container image the cluster pulls.",
     estTime: "60 min",
     steps: [
-      { actor: "Attacker", action: "Discovers the public registry — Shodan, organisation's GitHub Actions logs, or a leaked Dockerfile.", exploits: ["REG-001"] },
+      { actor: "Attacker", action: "Discovers the public registry, Shodan, organisation's GitHub Actions logs, or a leaked Dockerfile.", exploits: ["REG-001"] },
       { actor: "Attacker", action: "Anonymously pushes a backdoored image at the same tag the cluster pulls. Scan-on-push is disabled, so no alarm fires.", exploits: ["REG-001", "REG-004"] },
       { actor: "Attacker", action: "Waits for the next deployment (or triggers a rollout). The pod runs with `privileged: true` and `hostPath: /` mounted read-write.", exploits: ["K8S-101", "K8S-108"] },
-      { actor: "Attacker", action: "Backdoor sees `/host`, runs `chroot /host /bin/bash`, drops a persistent SSH key — root on the node.", exploits: ["K8S-108"] },
+      { actor: "Attacker", action: "Backdoor sees `/host`, runs `chroot /host /bin/bash`, drops a persistent SSH key, root on the node.", exploits: ["K8S-108"] },
     ],
   },
 ];
@@ -519,8 +519,8 @@ type MatchResult = {
 };
 
 // Deterministic matcher: score every catalog component against the description, keep the ones
-// with a real signal. No LLM / network call — instant, free, and predictable.
-// `commands: false` skips the clear / select-all shortcuts — used for uploaded documents,
+// with a real signal. No LLM / network call, instant, free, and predictable.
+// `commands: false` skips the clear / select-all shortcuts, used for uploaded documents,
 // where words like "clear", "empty" or "everything" are ordinary prose, not instructions.
 function matchComponents(input: string, opts: { commands?: boolean } = {}): MatchResult {
   const q = " " + input.toLowerCase().replace(/[_/]/g, " ") + " ";
@@ -555,7 +555,7 @@ function matchComponents(input: string, opts: { commands?: boolean } = {}): Matc
       }
       const hay = " " + (comp.name + " " + comp.short + " " +
         comp.vulns.map((v) => v.title + " " + v.desc).join(" ")).toLowerCase() + " ";
-      // Incidental word hits on the catalog text only re-rank — capped so they can
+      // Incidental word hits on the catalog text only re-rank, capped so they can
       // never cross the selection threshold alone (keeps long docs / RFPs precise).
       let tokenScore = 0;
       for (const t of tokens) if (wordHit(hay, t)) tokenScore += 0.5;
@@ -581,7 +581,7 @@ function matchComponents(input: string, opts: { commands?: boolean } = {}): Matc
   return { command: "select", ids: ids.slice(0, 12), provider };
 }
 
-// Standards references per vulnerability ID — CWE (weakness type), CVSS v3.1 base score,
+// Standards references per vulnerability ID, CWE (weakness type), CVSS v3.1 base score,
 // CIS Benchmark control, and a representative CVE where the misconfig has a direct, well-known
 // software-CVE mapping (TLS protocol attacks, container-escape primitives, EOL OS examples).
 // Most catalog items are pure misconfigurations and do not have a CVE.
@@ -791,7 +791,7 @@ const TF_BODIES: Record<string, Partial<Record<Provider, (region: string) => str
   "vm-public-ssh": {
     aws: () => `resource "aws_security_group" "vm_public_ssh" {
   name        = "vbuild-vm-public-ssh"
-  description = "INTENTIONALLY VULNERABLE — open to the world"
+  description = "INTENTIONALLY VULNERABLE, open to the world"
   ingress {
     from_port   = 22
     to_port     = 22
@@ -948,7 +948,7 @@ resource "aws_instance" "vm_imds_v1" {
   associate_public_ip_address = true
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "optional" # IMDSv1 allowed — SSRF-prone
+    http_tokens                 = "optional" # IMDSv1 allowed, SSRF-prone
     http_put_response_hop_limit = 2
   }
   tags = { Name = "vbuild-vm-imds-v1" }
@@ -1058,7 +1058,7 @@ resource "azurerm_mssql_database" "data_unencrypted_db" {
   name      = "vbuild"
   server_id = azurerm_mssql_server.data_unencrypted_db.id
   sku_name  = "Basic"
-  # Transparent Data Encryption left at default — no customer-managed key.
+  # Transparent Data Encryption left at default, no customer-managed key.
 }
 `,
     gcp: (region) => `resource "google_sql_database_instance" "data_unencrypted_db" {
@@ -1076,7 +1076,7 @@ resource "azurerm_mssql_database" "data_unencrypted_db" {
         value = "0.0.0.0/0"
       }
     }
-    # No disk_encryption_configuration block — Google-managed key only, no CMK.
+    # No disk_encryption_configuration block, Google-managed key only, no CMK.
   }
 }
 
@@ -1089,7 +1089,7 @@ resource "google_sql_user" "data_unencrypted_db" {
   },
 
   "data-no-audit": {
-    aws: () => `# CloudTrail provisioned but logging disabled — silent data plane.
+    aws: () => `# CloudTrail provisioned but logging disabled, silent data plane.
 resource "aws_s3_bucket" "data_no_audit_trail" {
   bucket        = "vbuild-no-audit-\${random_id.suffix.hex}"
   force_destroy = true
@@ -1113,7 +1113,7 @@ resource "azurerm_storage_account" "data_no_audit" {
   account_replication_type = "LRS"
 }
 `,
-    gcp: () => `# Audit config records ADMIN_READ only — DATA_READ / DATA_WRITE are not captured.
+    gcp: () => `# Audit config records ADMIN_READ only, DATA_READ / DATA_WRITE are not captured.
 resource "google_project_iam_audit_config" "data_no_audit" {
   project = var.project_id
   service = "allServices"
@@ -1418,7 +1418,7 @@ resource "aws_eks_cluster" "ctr_public_cluster" {
   remove_default_node_pool = false
   deletion_protection      = false
 
-  # No master_authorized_networks_config block — control plane reachable from 0.0.0.0/0.
+  # No master_authorized_networks_config block, control plane reachable from 0.0.0.0/0.
 
   private_cluster_config {
     enable_private_nodes    = false
@@ -1442,7 +1442,7 @@ resource "aws_eks_cluster" "ctr_public_cluster" {
   storage_account_type = "Standard_LRS"
   create_option        = "Empty"
   disk_size_gb         = 8
-  # No disk_encryption_set_id — uses default platform key, no CMK.
+  # No disk_encryption_set_id, uses default platform key, no CMK.
 }
 `,
     gcp: (region) => `resource "google_compute_disk" "vm_unencrypted_disk" {
@@ -1450,7 +1450,7 @@ resource "aws_eks_cluster" "ctr_public_cluster" {
   zone = "${region}-a"
   size = 8
   type = "pd-standard"
-  # No disk_encryption_key block — Google-managed key only.
+  # No disk_encryption_key block, Google-managed key only.
 }
 `,
   },
@@ -1549,7 +1549,7 @@ resource "azurerm_linux_virtual_machine" "vm_secrets_userdata" {
       Resource  = "arn:aws:es:${region}:*:domain/vbuild-public-search/*"
     }]
   })
-  # No advanced_security_options / VPC config — public.
+  # No advanced_security_options / VPC config, public.
 }
 `,
   },
@@ -1564,7 +1564,7 @@ resource "azurerm_linux_virtual_machine" "vm_secrets_userdata" {
 resource "aws_ami_from_instance" "data_public_snapshot" {
   name               = "vbuild-data-public-snapshot"
   source_instance_id = aws_instance.data_public_snapshot_src.id
-  description        = "INTENTIONALLY VULNERABLE — public AMI with EBS snapshot"
+  description        = "INTENTIONALLY VULNERABLE, public AMI with EBS snapshot"
 }
 
 resource "aws_ami_launch_permission" "data_public_snapshot" {
@@ -1618,7 +1618,7 @@ resource "google_compute_snapshot_iam_member" "data_public_snapshot" {
 
 resource "aws_security_group" "data_cache_open" {
   name        = "vbuild-data-cache-open"
-  description = "INTENTIONALLY VULNERABLE — Redis open to world"
+  description = "INTENTIONALLY VULNERABLE, Redis open to world"
   vpc_id      = data.aws_vpc.default.id
   ingress {
     from_port   = 6379
@@ -1682,7 +1682,7 @@ resource "aws_iam_role" "id_oidc_trust" {
       Condition = {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          # IAM-040: no sub-claim restriction — ANY GitHub workflow can assume.
+          # IAM-040: no sub-claim restriction, ANY GitHub workflow can assume.
           # Real fix: "token.actions.githubusercontent.com:sub" = "repo:my-org/my-repo:ref:refs/heads/main"
         }
       }
@@ -1733,7 +1733,7 @@ resource "google_iam_workload_identity_pool_provider" "id_oidc_trust" {
   }
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
-    # IAM-040: no attribute_condition — any repository authenticates.
+    # IAM-040: no attribute_condition, any repository authenticates.
   }
 }
 
@@ -1757,7 +1757,7 @@ resource "google_project_iam_member" "id_oidc_trust_owner" {
   },
 
   "id-root-account": {
-    aws: () => `# Root account itself cannot be managed via Terraform — IAM API rejects root operations.
+    aws: () => `# Root account itself cannot be managed via Terraform, IAM API rejects root operations.
 # The expected operator response is to set up detection (Config + EventBridge) and remediate
 # in the AWS console (rotate / delete keys, enable MFA).
 
@@ -1795,7 +1795,7 @@ resource "aws_cloudwatch_event_rule" "root_signin_alarm" {
   require_numbers                = false
   require_symbols                = false
   allow_users_to_change_password = true
-  # IAM-072: no max_password_age — passwords valid indefinitely.
+  # IAM-072: no max_password_age, passwords valid indefinitely.
   # No password_reuse_prevention either.
 }
 `,
@@ -1875,7 +1875,7 @@ resource "azurerm_linux_function_app" "fn_public_url" {
   service_plan_id            = azurerm_service_plan.fn_public_url.id
   identity { type = "SystemAssigned" }
   site_config {
-    # No ip_restriction blocks — reachable from anywhere.
+    # No ip_restriction blocks, reachable from anywhere.
   }
   auth_settings { enabled = false } # FN-001: anonymous invoke allowed.
 }
@@ -1964,7 +1964,7 @@ resource "aws_lambda_function" "fn_secrets_env" {
       GITHUB_PAT     = "ghp_redacted_but_not_really"
     }
   }
-  # No kms_key_arn — env encrypted only with default Lambda key.
+  # No kms_key_arn, env encrypted only with default Lambda key.
 }
 `,
     azure: () => `resource "azurerm_storage_account" "fn_secrets_env" {
@@ -2087,7 +2087,7 @@ resource "azurerm_linux_function_app" "fn_loose_policy" {
   storage_account_access_key = azurerm_storage_account.fn_loose_policy.primary_access_key
   service_plan_id            = azurerm_service_plan.fn_loose_policy.id
   site_config {
-    cors { allowed_origins = ["*"] } # CORS wide-open — cross-origin invocation invited.
+    cors { allowed_origins = ["*"] } # CORS wide-open, cross-origin invocation invited.
   }
   auth_settings { enabled = false }
 }
@@ -2228,7 +2228,7 @@ resource "google_dns_record_set" "net_dangling_dns" {
   "net-public-origin": {
     aws: () => `resource "aws_security_group" "net_public_origin" {
   name        = "vbuild-net-public-origin"
-  description = "INTENTIONALLY VULNERABLE — ALB reachable directly, bypasses CDN/WAF"
+  description = "INTENTIONALLY VULNERABLE, ALB reachable directly, bypasses CDN/WAF"
   vpc_id      = data.aws_vpc.default.id
   ingress {
     from_port   = 80
@@ -2261,7 +2261,7 @@ resource "azurerm_linux_web_app" "net_public_origin" {
   service_plan_id               = azurerm_service_plan.net_public_origin.id
   public_network_access_enabled = true
   site_config {
-    # No ip_restriction — origin reachable from any IP, bypassing Front Door / WAF.
+    # No ip_restriction, origin reachable from any IP, bypassing Front Door / WAF.
   }
 }
 `,
@@ -2297,7 +2297,7 @@ resource "google_compute_instance" "net_public_origin" {
   load_balancer_type = "application"
   subnets            = data.aws_subnets.default.ids
 }
-# NET-401: no aws_wafv2_web_acl_association — ALB unprotected at L7.
+# NET-401: no aws_wafv2_web_acl_association, ALB unprotected at L7.
 `,
     azure: () => `resource "azurerm_cdn_frontdoor_profile" "net_no_waf" {
   name                = "vbuild-net-no-waf"
@@ -2310,7 +2310,7 @@ resource "google_compute_instance" "net_public_origin" {
   name                  = "vbuild-net-no-waf"
   protocol              = "HTTP"
   load_balancing_scheme = "EXTERNAL"
-  # NET-401: no security_policy — no Cloud Armor managed rule set at L7.
+  # NET-401: no security_policy, no Cloud Armor managed rule set at L7.
 }
 `,
   },
@@ -2400,7 +2400,7 @@ resource "kubernetes_manifest" "ctr_sa_token_binding" {
   }
 }
 
-# K8S-050: automountServiceAccountToken left at default (true) — pod inherits a token
+# K8S-050: automountServiceAccountToken left at default (true), pod inherits a token
 # at /var/run/secrets/kubernetes.io/serviceaccount/token, stealable on compromise.
 resource "kubernetes_manifest" "ctr_sa_token_pod" {
   manifest = {
@@ -2436,8 +2436,8 @@ resource "kubernetes_manifest" "ctr_image_as_root" {
         image   = "alpine:3.19"
         command = ["sleep", "infinity"]
         securityContext = {
-          # K8S-060: runAsNonRoot not set — container runs as root by default.
-          # K8S-062: readOnlyRootFilesystem not set — attacker can drop persistent binaries.
+          # K8S-060: runAsNonRoot not set, container runs as root by default.
+          # K8S-062: readOnlyRootFilesystem not set, attacker can drop persistent binaries.
         }
       }]
     }
@@ -2535,7 +2535,7 @@ function tf(provider: Provider, region: string, items: Component[]) {
   const blocks = supported.map((c) => tfBlock(provider, region, c)).join("\n");
   const skipped = items
     .filter((c) => !c.providers.includes(provider))
-    .map((c) => `# skipped: "${c.name}" — not supported on ${PROVIDER_LABEL[provider]}.`)
+    .map((c) => `# skipped: "${c.name}", not supported on ${PROVIDER_LABEL[provider]}.`)
     .join("\n");
   return [header, shared, blocks, skipped].filter(Boolean).join("\n");
 }
@@ -2555,7 +2555,7 @@ const CFN_BODIES: Record<string, () => string> = {
   "vm-public-ssh": () => `  VmPublicSshSg:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: INTENTIONALLY VULNERABLE — open to the world
+      GroupDescription: INTENTIONALLY VULNERABLE, open to the world
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 22
@@ -2605,7 +2605,7 @@ const CFN_BODIES: Record<string, () => string> = {
       IamInstanceProfile: !Ref VmImdsV1Profile
       MetadataOptions:
         HttpEndpoint: enabled
-        HttpTokens: optional # IMDSv1 allowed — SSRF-prone
+        HttpTokens: optional # IMDSv1 allowed, SSRF-prone
         HttpPutResponseHopLimit: 2
 `,
   "data-public-bucket": () => `  DataPublicBucket:
@@ -2865,7 +2865,7 @@ const CFN_BODIES: Record<string, () => string> = {
             Condition:
               StringEquals:
                 "token.actions.githubusercontent.com:aud": sts.amazonaws.com
-                # IAM-040: no sub claim restriction — any GitHub workflow can assume.
+                # IAM-040: no sub claim restriction, any GitHub workflow can assume.
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AdministratorAccess
 `,
@@ -2929,7 +2929,7 @@ const CFN_BODIES: Record<string, () => string> = {
     Type: AWS::Route53::HostedZone
     Properties:
       Name: vbuild-example.com
-  # NET-201: CNAME points at a deleted S3 bucket — attacker can re-register the bucket name.
+  # NET-201: CNAME points at a deleted S3 bucket, attacker can re-register the bucket name.
   NetDanglingDns:
     Type: AWS::Route53::RecordSet
     Properties:
@@ -2965,7 +2965,7 @@ const CFN_BODIES: Record<string, () => string> = {
       Subnets: !Ref SubnetIds
       Scheme: internet-facing
       Type: application
-  # NET-401: no AWS::WAFv2::WebACLAssociation in this stack — ALB unprotected at L7.
+  # NET-401: no AWS::WAFv2::WebACLAssociation in this stack, ALB unprotected at L7.
 `,
   "fn-public-url": () => `  FnPublicUrlRole:
     Type: AWS::IAM::Role
@@ -3064,15 +3064,15 @@ function cfn(region: string, items: Component[]) {
 
   const resources = aws
     .map((c) => {
-      const banner = `  # ${c.name} — vulns: ${c.vulns.map((v) => v.id).join(", ")}`;
+      const banner = `  # ${c.name}, vulns: ${c.vulns.map((v) => v.id).join(", ")}`;
       const fn = CFN_BODIES[c.id];
       if (fn) return `${banner}\n${fn()}`;
-      return `${banner}\n  ${pascal(c.id)}Placeholder:\n    Type: AWS::CloudFormation::WaitConditionHandle\n    # No CloudFormation template available — see Terraform output for full resources.\n`;
+      return `${banner}\n  ${pascal(c.id)}Placeholder:\n    Type: AWS::CloudFormation::WaitConditionHandle\n    # No CloudFormation template available, see Terraform output for full resources.\n`;
     })
     .join("\n");
 
   const skip = skipped
-    .map((c) => `# skipped: "${c.name}" — CloudFormation is AWS-only.`)
+    .map((c) => `# skipped: "${c.name}", CloudFormation is AWS-only.`)
     .join("\n");
 
   const needsAmi = aws.some((c) => CFN_NEEDS_AMI.has(c.id));
@@ -3092,7 +3092,7 @@ function cfn(region: string, items: Component[]) {
   const parametersBlock = params.length ? `\nParameters:\n${params.join("\n\n")}\n` : "";
 
   return `AWSTemplateFormatVersion: "2010-09-09"
-Description: "Vulnerabuild — intentionally vulnerable AWS infrastructure (deploy region: ${region})"
+Description: "Vulnerabuild, intentionally vulnerable AWS infrastructure (deploy region: ${region})"
 ${parametersBlock}
 Resources:
 ${resources || "  Noop:\n    Type: AWS::CloudFormation::WaitConditionHandle\n"}
@@ -3335,7 +3335,7 @@ function BuildPage() {
         {/* RIGHT: generator */}
         <section className="col-span-12 lg:col-span-7 xl:col-span-8">
           <div className="rounded-xl border border-border bg-card/60 overflow-hidden">
-            {/* Row 1 — title + actions (anchored, never wraps) */}
+            {/* Row 1, title + actions (anchored, never wraps) */}
             <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-background/40">
               <div className="flex items-center gap-2 min-w-0">
                 <FileCode className="h-4 w-4 text-primary flex-shrink-0" />
@@ -3359,7 +3359,7 @@ function BuildPage() {
               </div>
             </div>
 
-            {/* Row 2 — format / provider / region (wraps freely without affecting the actions above) */}
+            {/* Row 2, format / provider / region (wraps freely without affecting the actions above) */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 border-b border-border bg-background/20">
               <ControlGroup label="format">
                 <SegmentedControl
@@ -3392,7 +3392,7 @@ function BuildPage() {
                   >
                     {REGIONS[provider].map((r) => (
                       <option key={r.id} value={r.id} className="bg-background">
-                        {r.id} — {r.label}
+                        {r.id}, {r.label}
                       </option>
                     ))}
                   </select>
@@ -3444,7 +3444,7 @@ function Assistant({
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
       role: "assistant",
-      text: "Describe the environment you want to build — or attach an RFP / requirements file — and I'll pick the matching vulnerabilities from the catalog and select them for you.",
+      text: "Describe the environment you want to build, or attach an RFP / requirements file, and I'll pick the matching vulnerabilities from the catalog and select them for you.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -3475,7 +3475,7 @@ function Assistant({
     } else if (res.ids.length === 0) {
       reply = {
         role: "assistant",
-        text: "I couldn't map that to the catalog. Try naming the tech or the weakness — e.g. “kubernetes container escape”, “public bucket”, “IMDSv1 SSRF”, “weak TLS load balancer”.",
+        text: "I couldn't map that to the catalog. Try naming the tech or the weakness, e.g. “kubernetes container escape”, “public bucket”, “IMDSv1 SSRF”, “weak TLS load balancer”.",
       };
     } else {
       onApply(res.ids, res.provider);
@@ -3528,7 +3528,7 @@ function Assistant({
       if (!raw) {
         reply = {
           role: "assistant",
-          text: "I couldn't read any text from that file — if it's a scanned PDF, paste the requirements into the box instead.",
+          text: "I couldn't read any text from that file, if it's a scanned PDF, paste the requirements into the box instead.",
         };
       } else {
         const res = matchComponents(raw.slice(0, 40000), { commands: false });
@@ -3648,7 +3648,7 @@ function Assistant({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") send(); }}
-            placeholder={busy ? "Reading your file…" : "Describe it — or attach an RFP…"}
+            placeholder={busy ? "Reading your file…" : "Describe it, or attach an RFP…"}
             disabled={busy}
             className="flex-1 rounded-md border border-border bg-background/60 px-3 py-2 text-sm focus:outline-none focus:border-primary/60 disabled:opacity-50"
           />

@@ -5,7 +5,7 @@ import { ATTACK_PATHS, type AttackPath } from "./build";
 export const Route = createFileRoute("/attack-paths")({
   head: () => ({
     meta: [
-      { title: "Attack paths — Vulnerabuild" },
+      { title: "Attack paths | Vulnerabuild" },
       { name: "description", content: "Curated multi-step attack scenarios that chain catalog vulnerabilities into a single objective." },
     ],
   }),
@@ -45,13 +45,13 @@ function AttackPathsPage() {
       <main className="relative mx-auto max-w-7xl px-6 py-10">
         <div className="max-w-2xl">
           <div className="inline-flex items-center gap-2 font-mono text-xs text-primary uppercase tracking-widest">
-            <BookOpen className="h-3.5 w-3.5" /> 01 — attack paths
+            <BookOpen className="h-3.5 w-3.5" /> 01, attack paths
           </div>
           <h1 className="mt-3 font-display text-3xl md:text-5xl font-bold tracking-tight">
             Curated misconfig chains.
           </h1>
           <p className="mt-3 text-muted-foreground">
-            Each path bundles two or more catalog scenarios into a single attacker storyline — starting position, objective, and the
+            Each path bundles two or more catalog scenarios into a single attacker storyline, starting position, objective, and the
             exact steps that exploit each misconfiguration. Open one in the builder to pre-select the components and embed the playbook
             in the generated IaC.
           </p>

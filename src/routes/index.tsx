@@ -63,7 +63,7 @@ function Hero() {
           <div className="lg:col-span-7">
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-1 text-xs font-mono text-muted-foreground mb-6">
               <span className="h-1.5 w-1.5 rounded-full bg-primary blink" />
-              v0.5.1 — attack paths (preview) · stable: v0.5.0
+              v0.5.1, attack paths (preview) · stable: v0.5.0
             </div>
             <h1 className="font-display text-5xl md:text-7xl font-bold tracking-tight leading-[1.02]">
               Generate <span className="text-primary text-glow">vulnerable</span><br />
@@ -121,12 +121,12 @@ function DeployPreviewCard() {
       </div>
 
       <div className="p-5 font-mono text-[12px] leading-relaxed space-y-1 text-foreground/90">
-        <div><span className="text-muted-foreground"># Public S3 bucket — vulns: S3-001, S3-004</span></div>
+        <div><span className="text-muted-foreground"># Public S3 bucket, vulns: S3-001, S3-004</span></div>
         <div><span className="text-primary">resource</span> <span className="text-accent">"aws_s3_bucket"</span> <span className="text-accent">"public"</span> {"{"}</div>
         <div className="pl-4">bucket = <span className="text-success">"vbuild-public"</span></div>
         <div>{"}"}</div>
         <div className="h-2" />
-        <div><span className="text-muted-foreground"># Public SSH/RDP host — vulns: NET-007</span></div>
+        <div><span className="text-muted-foreground"># Public SSH/RDP host, vulns: NET-007</span></div>
         <div><span className="text-primary">resource</span> <span className="text-accent">"aws_security_group"</span> <span className="text-accent">"open"</span> {"{"}</div>
         <div className="pl-4">ingress {"{"}</div>
         <div className="pl-8">cidr_blocks = [<span className="text-success">"0.0.0.0/0"</span>]</div>
@@ -156,7 +156,7 @@ function ProvidersSection() {
   return (
     <section id="providers" className="relative py-24 border-t border-border/60">
       <div className="mx-auto max-w-7xl px-6">
-        <SectionHeader eyebrow="01 — providers" title="Three clouds. One interface." subtitle="Native primitives for each provider, orchestrated through a single declarative spec." />
+        <SectionHeader eyebrow="01, providers" title="Three clouds. One interface." subtitle="Native primitives for each provider, orchestrated through a single declarative spec." />
         <div className="mt-12 grid md:grid-cols-3 gap-4">
           {providers.map((p) => (
             <div key={p.code} className="group relative rounded-xl border border-border bg-card/60 p-6 hover:bg-card transition">
@@ -202,7 +202,7 @@ function ScenariosSection() {
     <section id="scenarios" className="relative py-24 border-t border-border/60">
       <div className="mx-auto max-w-7xl px-6">
         <div className="flex items-end justify-between flex-wrap gap-4">
-          <SectionHeader eyebrow="02 — scenarios" title="Curated misconfigurations." subtitle="Mapped to MITRE ATT&CK and CWE. Versioned, reproducible, isolated." className="max-w-xl" />
+          <SectionHeader eyebrow="02, scenarios" title="Curated misconfigurations." subtitle="Mapped to MITRE ATT&CK and CWE. Versioned, reproducible, isolated." className="max-w-xl" />
           <button className="font-mono text-sm text-primary hover:underline inline-flex items-center gap-1">browse all 42 <ChevronRight className="h-4 w-4" /></button>
         </div>
 
@@ -252,7 +252,7 @@ function DeploySection() {
   return (
     <section id="deploy" className="relative py-24 border-t border-border/60">
       <div className="mx-auto max-w-7xl px-6">
-        <SectionHeader eyebrow="03 — workflow" title="From scenario to template in seconds." subtitle="Today: download IaC and apply it yourself. Soon: one-click deploy from the console." />
+        <SectionHeader eyebrow="03, workflow" title="From scenario to template in seconds." subtitle="Today: download IaC and apply it yourself. Soon: one-click deploy from the console." />
         <div className="mt-12 grid md:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border">
           {steps.map((s) => (
             <div key={s.n} className="bg-card p-8 relative">
@@ -270,7 +270,7 @@ function DeploySection() {
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 flex items-start gap-3">
             <Clock className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
             <div className="text-sm">
-              <span className="font-semibold text-primary">coming soon — managed deploy.</span>{" "}
+              <span className="font-semibold text-primary">coming soon, managed deploy.</span>{" "}
               <span className="text-muted-foreground">Connect a cloud account via OIDC and we will provision, monitor, and tear down environments for you. Currently in private alpha.</span>
             </div>
           </div>
@@ -325,7 +325,7 @@ function Footer() {
       <div className="mx-auto max-w-7xl px-6 py-10 flex flex-wrap items-center justify-between gap-4 font-mono text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
           <Shield className="h-3.5 w-3.5 text-primary" />
-          <span>vulnerabuild © 2026 — for authorized security research only</span>
+          <span>vulnerabuild © 2026, for authorized security research only</span>
         </div>
         <div className="flex items-center gap-6">
           <a href="#" className="hover:text-foreground">terms</a>

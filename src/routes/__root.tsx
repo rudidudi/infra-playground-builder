@@ -29,7 +29,7 @@ function CookieConsent() {
     try {
       localStorage.setItem(COOKIE_CONSENT_KEY, value);
     } catch {
-      // storage blocked (private mode, etc.) — just dismiss for this session
+      // storage blocked (private mode, etc.), just dismiss for this session
     }
     setVisible(false);
   };
@@ -101,12 +101,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Vulnerabuild — Provision vulnerable cloud infrastructure" },
+      { title: "Vulnerabuild: Provision vulnerable cloud infrastructure" },
       { name: "description", content: "Spin up intentionally vulnerable AWS, GCP, and Azure infrastructure for security training, red team exercises, and CTFs." },
-      { property: "og:title", content: "Vulnerabuild — Provision vulnerable cloud infrastructure" },
+      { property: "og:title", content: "Vulnerabuild: Provision vulnerable cloud infrastructure" },
       { property: "og:description", content: "Spin up intentionally vulnerable AWS, GCP, and Azure infrastructure for security training, red team exercises, and CTFs." },
       { property: "og:type", content: "website" },
-      { name: "twitter:title", content: "Vulnerabuild — Provision vulnerable cloud infrastructure" },
+      { name: "twitter:title", content: "Vulnerabuild: Provision vulnerable cloud infrastructure" },
       { name: "twitter:description", content: "Spin up intentionally vulnerable AWS, GCP, and Azure infrastructure for security training, red team exercises, and CTFs." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bbd2b1d6-655c-459e-82d8-1197f11dbbbb/id-preview-220cf6c6--c5733d47-f274-4ebc-8c41-ccac1ca21148.lovable.app-1778746746710.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bbd2b1d6-655c-459e-82d8-1197f11dbbbb/id-preview-220cf6c6--c5733d47-f274-4ebc-8c41-ccac1ca21148.lovable.app-1778746746710.png" },

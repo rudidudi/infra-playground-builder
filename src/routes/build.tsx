@@ -3522,7 +3522,8 @@ function Assistant({
     const label = `📄 ${file.name}`;
     setBusy(true);
     try {
-      const raw = (await extractText(file)).replace(/\s+/g, " ").trim();
+      // NFKC splits typographic ligatures PDFs often use ("ﬁ" → "fi") so keywords still match.
+      const raw = (await extractText(file)).normalize("NFKC").replace(/\s+/g, " ").trim();
       let reply: ChatMsg;
       if (!raw) {
         reply = {
